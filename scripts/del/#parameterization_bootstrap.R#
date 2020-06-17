@@ -1,0 +1,68 @@
+library(dplyr)
+library(data.table)
+library(stringr)
+library(parallel)
+std<-function(x){(x-mean(x))/sd(x)}
+
+rf_files<-list.files(path="../big_rf",full.names = T)
+load("alleles_with_all_algos.R")
+rf_files<-rf_files[which(str_extract(rf_files,"[A-C][0-9]+\\:[0-9]+")%in%sel_alleles)]
+
+algos<-c("mhcflurry_affinity_percentile","mhcflurry_presentation_score","MixMHCpred","netMHC_affinity","netMHCpan_EL_affinity","netstab_affinity","pickpocket_affinity")
+PPV_calc<-function(x,y,thres){
+    tmp<-data.frame(as.numeric(x),y,stringsAsFactors = F)
+    tmp<-tmp[order(tmp[,1]),]
+    tar_ind<-which(tmp[,2]=="target") 
+    ind<-round(length(tar_ind)*thres)
+    tab_PPV<-table(tmp$y[1:ind])
+    c(PPV=tab_PPV["target"]/sum(tab_PPV),value=tmp[ind,1])
+    
+}
+
+min_norm<-function(x){(max(x)-x)/(max(x)-min(x))}
+
+recall_threshold<-.5
+#calculate 1-100
+run_1_100<-TRUE
+
+#calculate PPV based on the data
+PPV_values<-mclapply(rf_files,function(file){
+  mat<-fread(file,stringsAsFactors = F)
+  mat<-mat%>%unique()
+  mat$mhcflurry_presentation_score<-min_norm(mat$mhcflurry_presentation_score)
+  mat$pickpocket_affinity<-min_norm(mat$pickpocket_affinity)
+  
+ 
+  tenfold_sample_1_100<-do.call(rbind,lapply(1:1000,function(i){
+    
+    tar<-mat%>%slice(which(ident=="target"))
+    dec<-mat%>%slice(which(ident=="decoy"))
+    set<-rbind(tar[sample(1:nrow(tar),round(nrow(tar)*.5),replace = F),],dec[sample(1:nrow(dec),nrow(dec)*.5),])
+    
+    PPV<-t(sapply(colnames(set)[which(colnames(set)%in%algos)],function(p){
+    PPV_calc(set[,p],set$ident,thres = recall_threshold)
+  }))
+    
+    data.frame(PPV,iter=i)
+    
+  }))
+  
+tenfold_sample_1_1000
+  
+},mc.cores = 52)
+
+names(PPV_values)<-str_extract(rf_files,"[A-C][0-9]{2}\\:[0-9]{2}")
+
+set_number<-2
+P_sum<-do.call(rbind,lapply(1:length(PPV_values),function(i){
+  tmp<-PPV_values[[i]][[set_number]]%>%mutate(algo=str_remove(row.names(.),"[0-9]+"))%>%group_by(algo)%>%summarise(PPV=mean(PPV.target,na.rm = T),value=mean(value,na.rm = T))%>%mutate(HLA=names(PPV_values)[i])%>%slice(which(algo%in%algos))
+}))
+
+save(P_sum,file="P_sum_mean_1000_boot.R")
+
+P_sum<-do.call(rbind,lapply(1:length(PPV_values),function(i){
+  tmp<-PPV_values[[i]][[set_number]]%>%mutate(algo=str_remove(row.names(.),"[0-9]+"))%>%group_by(algo)%>%summarise(PPV=median(PPV.target,na.rm = T),value=median(value,na.rm = T))%>%mutate(HLA=names(PPV_values)[i])%>%slice(which(algo%in%algos))
+}))
+
+save(P_sum,file="P_sum_median_1000_boot.R")
+
