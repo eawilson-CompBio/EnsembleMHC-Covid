@@ -205,7 +205,7 @@ allele_freq_list<-lapply(test_set,function(w){
 })
 
 #name list
-names(allele_freq_list)<-unique(all_data_clean$Country.Region[which(all_data_clean$Deaths>=1)])
+names(allele_freq_list)<-country_list
 
 #get rid of empty lists
 allele_freq_list<-allele_freq_list[which(sapply(allele_freq_list,function(w){nrow(w)>0}))]

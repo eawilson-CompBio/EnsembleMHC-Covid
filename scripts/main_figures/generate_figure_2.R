@@ -57,7 +57,7 @@ pep_probs<-lapply(unique(corona_data$HLA),function(w){
   #create a tmp variable with that consists of the corona virus predictions for one allele
   tmp <- corona_data%>%dplyr::slice(which(corona_data$HLA==w))
   #normalize the scores for the presentation score and pickpocket
-  #both of these scores are not percentiles and the thresholds were bsaed on the normalized scores
+  #both of these scores are not percentiles and the identifed thresholds were based on the similarly normalized scores
   tmp$mhcflurry_presentation_score<-min_norm(tmp$mhcflurry_presentation_score)
   tmp$pickpocket_affinity<-min_norm(tmp$pickpocket_affinity)
   #coverent the gene name into a factor
@@ -66,17 +66,19 @@ pep_probs<-lapply(unique(corona_data$HLA),function(w){
   print(w)
   #create the prob list which is the selection of peptides that fall within the score filter for one algorithm
   #assign the algorithm FDR to each peptide based on the benchmarking calculations
+  # loop through all 7 algorithms
   prob_list<-lapply(colnames(tmp)[colnames(tmp)%in%unique(P_sum$algo)],function(q){
-    #Originally, the algorithms were assigned PPVs. These PPVs are converted to FDR through the relation PPV = 1 - FDR
+    #Originally, the algorithms were assigned PPVs. These PPVs are converted to FDR through the relation FDR = 1 - PPV
+    #therefore, the following line finds the PPV for the allele specified by w and algorithm q 
     neg=1-P_sum$PPV[which(P_sum$HLA==str_remove(w,pattern = "\\*")&P_sum$algo==q)]
-    #the score threshold required for that algorithm at the HLA is recovered from P_sum matrix
+    #same as above but with the score threshold for teh w and q combo
     thres=P_sum$value[which(P_sum$HLA==str_remove(w,pattern = "\\*")&P_sum$algo==q)]
     #select all peptides that fall within the scoring threshold for that algorithm at that allele
     peptides<-tmp$peptide[which(tmp[,q]<=thres)]
-    #return a data frame consisting of selected peptides, teh algorithm FDR, and algorithm name
+    #return a data frame consisting of selected peptides, the algorithm FDR, and algorithm name
     data.frame(peptide=peptides,prob=neg,algo=q)
   })
-  #combine all of the prob_lists in one dataframe, calculate the products of the FDRs associatied with detecting algorithms
+  #combine all of the prob_list elements in one dataframe, calculate the products of the FDRs associatied with detecting algorithms
   #merge with information regarding the gene and HLA
   prob_combo<-do.call(rbind,prob_list)%>%data.frame()%>%
     group_by(peptide)%>%summarise(prob=prod(prob))%>%merge(tmp[,c("peptide","gene","HLA")])
@@ -99,6 +101,7 @@ sel_alleles<-unique(all_counts$HLA)
 prob_threshold=.05
 
 #Summarize by allele and filter for peptides that are less than or equal to 5%
+#return a count of 
 df_all_proteins<-all_counts%>%slice(which(prob<=prob_threshold))%>%group_by(HLA,gene)%>%summarise(count=length(gene))
 write.csv(df_all_proteins,file=filter_pep_path,row.names=F)
 
