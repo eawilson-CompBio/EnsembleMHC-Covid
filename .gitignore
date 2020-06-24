@@ -2,7 +2,6 @@
 /Users/eawilso6/Covid-19/EnsembleMHC-Covid19/del_files/*
 /Users/eawilso6/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/*
 /Users/eawilso6/Covid-19/EnsembleMHC-Covid19/datasets/big_files/*
-/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/plots/SI_figures/*
-/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/plots/SI_tables/*
-/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/plots/main_figures/*
-*pdf
+/SI_figures/**
+/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/plots/SI_tables/*csv
+/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/plots/main_figures/*pdf
