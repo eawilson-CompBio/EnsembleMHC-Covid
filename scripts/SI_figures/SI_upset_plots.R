@@ -13,7 +13,7 @@ algos<-c("mhcflurry_affinity_percentile","mhcflurry_presentation_score","MixMHCp
 
 corona_data<-fread(paste0(data_path,"predicted_corona_peptides.csv"),stringsAsFactors = F)
 
-
+#calculate peptide prob and shape data  into correct format
 pep_probs<-lapply(unique(corona_data$HLA),function(w){
   #create a tmp variable with that consists of the corona virus predictions for one allele
   tmp <- corona_data%>%dplyr::slice(which(corona_data$HLA==w))
@@ -62,6 +62,7 @@ pep_probs<-lapply(unique(corona_data$HLA),function(w){
 all_prob<-do.call(rbind,pep_probs)
 all_prob$peptide<-as.character(all_prob$peptide)
 
+#create upset plot
 sel_up<-upset(all_prob,sets = algos, sets.bar.color = "#ACED00",
               order.by = "freq", empty.intersections = "on")
 

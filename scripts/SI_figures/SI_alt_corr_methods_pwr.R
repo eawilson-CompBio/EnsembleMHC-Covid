@@ -10,8 +10,8 @@ library(pwr)
 library(wpp2019)
 library(dplyr)
 library(parallel)
-
-
+library(patchwork)
+library(ggpubr)
 #functions
 
 #EnsembleEMP score function
@@ -39,30 +39,6 @@ EMP_score<-function(population){
   
 }
 
-# #get individual day data for box plots
-# get_day_data<-function(day,death_threshold,MIN_countries){
-#   #filter at a set number of minimuum deaths by day 0 
-#   #add days since it reached that point
-#   day_data<-CoV_data_sel_countries%>%slice(which(Deaths>=death_threshold))%>%
-#     group_by(country)%>%mutate(days=as.numeric((today()-day_correction)-mdy(date)))%>%mutate(days=max(days)-days)
-#   
-#   
-#   #set the threshold of days so you know when to stop iterating once the number of countries decreases below threshold
-#   thres<-table(day_data$days)[which(table(day_data$days)>=MIN_countries)]
-#   thres<-as.numeric(names(thres)[length(thres)])
-#   
-#   #mere the day data with the population data
-#   score_and_death_pop<-day_data%>%merge(select_population)
-#   
-#   #merge EMP scores and calculate deaths per million
-#   score_and_death_pop<-score_and_death_pop%>%group_by(country,days)%>%mutate(pop=`2020`/1000)%>%
-#     mutate(death_per_pop=Deaths/pop)%>%merge(countryEMPscore)%>%
-#     select(country,death_per_pop,Deaths,days,All.proteins,Structural.proteins)%>%
-#     slice(which(Deaths>=death_threshold))
-#   
-#   #return day specific data
-#   score_and_death_pop%>%slice(which(days==day))
-# }
 
 #calculate correlation as a function of time with a specific correlation method
 death_threshold_specific_corr<-function(death_threshold,MIN_countries,cor_method){
@@ -364,17 +340,21 @@ kendall_pwr<-df_kendall_pwr%>%ggplot(aes(x=days,y=pwr,group=confirmed))+geom_lin
   ggtitle("kendall")
 
 
-
 deathplots <- death_plot_pearson + death_plot_spearman + death_plot_kendall + plot_layout(ncol = 1,guides = "collect")+ 
-  plot_annotation(title = "population EnsembleMHC score and death rate correlation"
-                  #subtitle = paste("countries with at least",confirmed_case_threshold,"cases",sep = " ")
-                  )
-pwrplots <- pearson_pwr + spearman_pwr + kendall_pwr + plot_layout(ncol = 1,guides = "collect")+ 
-  plot_annotation(title = "population EsembleMHC score and death rate power ")
+  plot_annotation(title = "population EnsembleMHC score and death rate correlation")
 
+PPV_with_respect_to_R<-do.call(rbind,lapply(seq(.1,1,.1),function(R){
+  
+  c(w=R,table(df_spearman_pwr$source[which((df_spearman_pwr$pwr*R)/((df_spearman_pwr$pwr*R)+df_spearman_pwr$p_value)>=.95)])/table(df_spearman_pwr$source))
+}))%>%data.frame()%>%melt(id.vars="w")%>%ggplot(aes(x=w,y=value,color=variable))+geom_line()+xlab("R")+ylab("proportion of correlations with PPV > 95%")+theme_pubclean()+
+  theme(legend.position = "none")
+
+pwrplots <- pearson_pwr + spearman_pwr + kendall_pwr + plot_layout(ncol = 1,guides = "collect")+ 
+  plot_annotation(title = "population EnsembleMHC score and death rate power ")
 
 ggsave(deathplots,filename = paste0(Ensemble_PATH,"/plots/SI_figures/SI_deathplots_by_corr_methods.pdf"),height = 10,width = 10)
 ggsave(pwrplots,filename = paste0(Ensemble_PATH,"/plots/SI_figures/SI_pwrplots_by_corr_methods.pdf"),height = 10,width = 10)
+ggsave(filename = paste0(Ensemble_PATH,"/plots/SI_figures/SI_diff_R_value.pdf"),PPV_with_respect_to_R)
 
 
 

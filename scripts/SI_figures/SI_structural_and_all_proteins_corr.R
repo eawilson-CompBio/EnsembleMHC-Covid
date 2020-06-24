@@ -171,10 +171,9 @@ HLA_count<-rbind(df_all_proteins%>%mutate(source="All proteins")%>%
 
 
 #read HLA data
-all_HLA_data<-fread(paste0(data_path,"HLA_freqs_2020_update_all_alleles.csv"),header = T)
+all_HLA_data<-fread(paste0(data_path,"HLA_data_manuscript.csv"),header = T)
 #countries with at least 1 case reported case by 04/10
-confirmed_case_threshold<-1
-test_set<-unique(all_data_clean$Country.Region[which(all_data_clean$Confirmed>=confirmed_case_threshold)])
+test_set<-unique(all_data_clean$Country.Region[which(all_data_clean$Deaths>=1)])
 #Duplicate variable
 country_list<-test_set
 
@@ -190,11 +189,11 @@ sel_HLA<-unique(HLA_count$HLA)
 
 #normalize the allele frequencies with respect to selected alleles
 allele_freq_list<-lapply(test_set,function(w){
- 
+  
   name=w
   print(name)
-  w<-all_HLA_data[str_which(all_HLA_data$V3,w),]
-  colnames(w)<-c("Rowname","HLA","pop","allele_freq","n")
+  w<-all_HLA_data[str_which(all_HLA_data$population,w),]
+  colnames(w)<-c("HLA","pop","allele_freq","n")
   w$HLA<-str_remove(w$HLA,"\\*")
   total_n<-w%>%
     slice(which(HLA%in%sel_HLA))%>%
@@ -211,7 +210,7 @@ allele_freq_list<-lapply(test_set,function(w){
 })
 
 #name list
-names(allele_freq_list)<-unique(all_data_clean$Country.Region[which(all_data_clean$Confirmed>=confirmed_case_threshold)])
+names(allele_freq_list)<-country_list
 
 #get rid of empty lists
 allele_freq_list<-allele_freq_list[which(sapply(allele_freq_list,function(w){nrow(w)>0}))]
@@ -283,77 +282,26 @@ death_plot<-ggplot(norm_df_Death,aes(days,correlation,group=confirmed))+geom_lin
   xlab("normalized days")+theme(legend.text = element_text(size = 10),legend.key.size = unit(1,"cm"),
                                 axis.text = element_text(size=12,face = "bold"),
                                 title = element_text(size = 15,face="bold"),axis.title.y = element_text(size = 15,face="bold"))
-ggsave(death_plot,filename = paste0(Ensemble_PATH,"/plots/main_figures/figure_3A.pdf"),width = 18,height = 7)
 
 
-#create plot of just day 50 figure 3B
-death_thres<-50
-stats<-list()
-#without fill
-day_point_plots<-lapply(1:4,function(w){
-  day<-c(1,5,10,15)[w]
-  day_point<-get_day_data(day,death_thres,8)
-  dd<-day_point%>%arrange(Structural.proteins)%>%mutate(struct_prot_rank=1:length(Structural.proteins))%>%arrange(death_per_pop)%>%mutate(death_rank=1:length(death_per_pop))
-  
-  #create linear model
-  stats[[w]]<-cor.test(dd$death_per_pop,dd$Structural.proteins,method="spearman")
-  dd$half<-if_else(dd$struct_prot_rank>median(dd$struct_prot_rank),"upper half","lower half")
-  P<-dd%>%ggplot(aes(death_rank,struct_prot_rank,label=country))+geom_text_repel()+geom_point(aes(color=half))+
-    theme_classic()+theme(legend.position = "none")+ ggtitle(paste("day",day,sep=" "))+
-    xlab("death rate rank")+ylab("EnsembleMHC population rank")+scale_x_continuous(breaks = seq(2,nrow(day_point)+2,2))+
-    scale_y_continuous(breaks = seq(2,nrow(day_point)+2,2))+geom_hline(yintercept = median(dd$struct_prot_rank),linetype="dashed")
-  P$layers<-c(geom_smooth(method = lm,color="black"),P$layers)
-  P
-  
-})  
-corrs<-do.call(ggarrange,day_point_plots)
-ggsave(corrs,filename =paste0(Ensemble_PATH,"/plots/main_figures/figure_3B_no_fill.pdf"),width = 7.11,height = 5.33)
 
-#with fill
-day_point_plots<-lapply(1:4,function(w){
-  day<-c(1,5,10,15)[w]
-  day_point<-get_day_data(day,death_thres,8)
-  dd<-day_point%>%arrange(Structural.proteins)%>%mutate(struct_prot_rank=1:length(Structural.proteins))%>%arrange(death_per_pop)%>%mutate(death_rank=1:length(death_per_pop))
+df_spearman_pwr<-norm_df_Death
+df_spearman_pwr$pwr<-apply(df_spearman_pwr,1,function(w){
   
-  #create linear model
-  stats[[w]]<-cor.test(dd$death_per_pop,dd$Structural.proteins,method="spearman")
-  P<-dd%>%ggplot(aes(death_rank,struct_prot_rank,label=country))+geom_text_repel()+geom_point()+
-    theme_classic()+theme(legend.position = "none")+ ggtitle(paste("day",day,sep=" "))+
-    xlab("death rate rank")+ylab("EnsembleMHC population rank")+scale_x_continuous(breaks = seq(2,nrow(day_point)+2,2))+
-    scale_y_continuous(breaks = seq(2,nrow(day_point)+2,2))+
-    annotate("rect", xmin = 0, xmax = nrow(dd), ymin = 0, ymax = median(dd$struct_prot_rank),alpha = .2,fill="#F8667D")+
-    annotate("rect", xmin = 0, xmax = nrow(dd), ymin = median(dd$struct_prot_rank), ymax = max(dd$struct_prot_rank),alpha = .2,fill="#00BFC4")
-  #+geom_hline(data=dd,yintercept = median(dd$struct_prot_rank))
-  P$layers<-c(geom_smooth(method = lm,color="black"),P$layers)
-  P
-  
+  pwr.r.test(r = as.numeric(w[3]),n = as.numeric(w[6]),sig.level = .05)[[4]]
 })
-corrs<-do.call(ggarrange,day_point_plots)
-ggsave(corrs,filename =paste0(Ensemble_PATH,"/plots/main_figures/figure_3B_fill.pdf"),width = 7.11,height = 5.33)
 
 
-#create box plots figure 3C
-day_point_boxes<-lapply(c(1,5,10,15),function(day){
-  #get day specific data for the selected daya
-  day_point<-get_day_data(day,death_thres,6)
-  
-  #create data for the box plots
-  dd<-day_point%>%arrange(Structural.proteins)%>%mutate(struct_prot_rank=1:length(Structural.proteins))%>%
-    arrange(death_per_pop)%>%mutate(death_rank=1:length(death_per_pop))%>%mutate(group=if_else(struct_prot_rank>median(struct_prot_rank),"upper half","lower half"))
-  #calculate statisitcal significance of difference
-   wt<-round(wilcox.test(dd$death_per_pop[which(dd$group=="upper half")],dd$death_per_pop[which(dd$group=="lower half")])[[3]],4)
-  dd%>%ggplot(aes(x=group,y=death_per_pop,fill=group))+geom_boxplot()+annotate(geom = "text",x = 1.5,y=.8*max(dd$death_per_pop),label=paste("p =", wt))+
-    xlab("EnsembleMHC population rank")+ylab("deaths per 1M")+theme_pubclean()+theme(legend.position = "none")+ggtitle(paste("day",day,sep=" "))
-})  
+R=1
+df_spearman_pwr$PPV<-(df_spearman_pwr$pwr*R)/((df_spearman_pwr$pwr*R)+df_spearman_pwr$p_value)
 
-boxes<-do.call(ggarrange,day_point_boxes)
+df<-df_spearman_pwr%>%select(source,sig,PPV)%>%group_by(source)%>%
+  summarise(prop_p=table(sig)[2]/sum(table(sig)),prop_ppv=table(PPV>=.95)[2]/sum(table(PPV>=.95)))%>%melt()
 
-ggsave(boxes,filename =paste0(Ensemble_PATH,"/plots/main_figures/figure_3C.pdf"),width = 7.11,height = 5.33)
+#plot data
+plot<-ggplot(df,aes(x=variable,y=value))+geom_bar(stat="identity",aes(fill=source))+theme_classic()+
+  facet_wrap(source~.)+theme(legend.position = "none")
 
-figure_3BC<-ggarrange(corrs,boxes ,widths = c(.6,.4))
+garg <- ggarrange(death_plot,plot,widths = c(.66,.33))
 
-ggsave(figure_3BC,filename = paste0(Ensemble_PATH,"/plots/main_figures/figure_3BC.pdf"),width = 18,height = 7)
-
-figure_3  <- ggarrange(death_plot+theme(legend.key.size = unit(5,"mm")),figure_3BC,ncol=1,heights = c(1.5,2))
-
-ggsave(figure_3,filename = paste0(Ensemble_PATH,"/plots/main_figures/figure_3.pdf"),width = 18,height = 12)
+ggsave(filename = paste0(Ensemble_PATH,"/plots/SI_figures/SI_both_strucutral_n_full_prot.pdf"),garg,width = 14,height = 10.667)

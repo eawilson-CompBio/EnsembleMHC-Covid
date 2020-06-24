@@ -40,6 +40,7 @@ all<-mclapply(rf_files,function(file){
   #return matrix
   mat
 },mc.cores = 10)
+
 #find rf files with at least 20 column inidcating prediction for all alleles
 all_sel<-do.call(rbind,all[which(sapply(all,ncol)==20)])
 #sort by peptide then HLA to ensure correct arrangement
@@ -80,7 +81,7 @@ cor_plot<-melt(cor_all)%>%ggplot(aes(x=Var1,y=Var2,fill=value))+geom_tile()+scal
 algo_FDR<-P_sum%>%ggplot(aes(x=1-PPV,y=algo,fill=algo))+geom_density_ridges()+
   ylab("algorithm")+theme(legend.position = "none")+xlab("False Detection Rate")
 
-#calculate the 
+#calculate the per allele FDR
 by_allele_FDR<-P_sum%>%slice(which(HLA%in%sel_alleles))%>%
   ggplot(aes(x=factor(HLA,levels = rev(unique(HLA))),y=1-PPV))+geom_boxplot(fill="#00ACED")+
   coord_flip()+theme_classic()+ylab("False Detection Rate")+xlab("HLA")

@@ -1,4 +1,6 @@
 data_path="~/Covid-19/EnsembleMHC-Covid19/datasets/"
+Ensemble_PATH="~/Covid-19/EnsembleMHC-Covid19"
+
 library(ggthemes)
 library(ggpubr)
 library(ggplot2)
@@ -176,7 +178,7 @@ HLA_count<-rbind(df_all_proteins%>%mutate(source="All proteins")%>%
 
 all_data_clean<-read.csv(paste0(data_path,"JHU_data_clean.csv"),stringsAsFactors = F)
 
-all_HLA_data<-read.csv(paste0(data_path,"HLA_freqs_2020_update_all_alleles.csv"),stringsAsFactors = F,header = T)
+all_HLA_data<-read.csv(paste0(data_path,"HLA_data_manuscript.csv"),stringsAsFactors = F,header = T)
 #countries with at least 1 case reported case by 04/10
 confirmed_case_threshold<-1
 test_set<-unique(all_data_clean$Country.Region[which(all_data_clean$Confirmed>=confirmed_case_threshold)])
@@ -194,24 +196,20 @@ test_set[[which(country_list=="US")]]<-"USA"
 sel_HLA<-unique(HLA_count$HLA)
 
 
+#normalize the allele frequencies with respect to selected alleles
 allele_freq_list<-lapply(test_set,function(w){
-  # if(length(w)>1){
-  #   name=w[1]
-  #   w=paste(w,collapse = "|")
-  #   
-  # }else{
-  #   name=w
-  # }
+  
   name=w
   print(name)
-  w<-all_HLA_data[str_which(all_HLA_data$V3,w),]
-  colnames(w)<-c("Rowname","HLA","pop","allele_freq","n")
+  w<-all_HLA_data[str_which(all_HLA_data$population,w),]
+  colnames(w)<-c("HLA","pop","allele_freq","n")
   w$HLA<-str_remove(w$HLA,"\\*")
-  total_n<-w%>%slice(which(HLA%in%sel_HLA))%>%mutate(country=name)%>%select(pop,n)%>%unique()%>%mutate(n_total=sum(n))%>%pull(n_total)%>%unique()
+  total_n<-w%>%
+    slice(which(HLA%in%sel_HLA))%>%
+    mutate(country=name)%>%select(pop,n)%>%unique()%>%mutate(n_total=sum(n))%>%pull(n_total)%>%unique()
   
   
   tmp<-w%>%mutate(eff_pop=allele_freq*n*2)%>%     #convert to allele count
-    #replace_na(list(eff_pop=0))%>%
     slice(which(HLA%in%sel_HLA))%>%               #isolate the 52 alleles
     group_by(HLA)%>%summarise(allele_count=sum(eff_pop))%>% #group aggreate by allele
     mutate(pop_freq=allele_count/sum(allele_count))%>%      # normalize allele count
@@ -220,8 +218,9 @@ allele_freq_list<-lapply(test_set,function(w){
   
 })
 
+
 #name list
-names(allele_freq_list)<-unique(all_data_clean$Country.Region[which(all_data_clean$Confirmed>=confirmed_case_threshold)])
+names(allele_freq_list)<-country_list
 
 #get rid of empty lists
 allele_freq_list<-allele_freq_list[which(sapply(allele_freq_list,function(w){nrow(w)>0}))]
@@ -265,21 +264,21 @@ select_population$country[str_which(select_population$country,"Hong")]<-"Hong Ko
 all_stats<-mclapply(1:100,function(death_thres){get_stats(death_thres,8)},mc.cores = 10)
 all_s<-do.call(rbind,all_stats)
 
-CI_plot<-all_s%>%slice(which(death_threshold%%1==0&prot_group=="structural"))%>%
+CI_plot<-all_s%>%slice(which(prot_group=="structural"))%>%
   ggplot(aes(x = day,y=estimate.rho,color=prot_group))+geom_line(color="#00ACED")+
   geom_ribbon(aes(ymax=upper,ymin=lower),alpha=.2)+theme_classic()+
   facet_wrap(death_threshold~.)+theme(legend.position = "none")+ggtitle("SARS-CoV-2 structural proteins")+
   xlab("days from death threshold")
 
-ggsave(CI_plot,file="SI_SARS-CoV-2_structural_CI.pdf",width = 11,height = 11)
+ggsave(CI_plot,file=paste0(Ensemble_PATH,"/plots/SI_figures/SI_SARS-CoV-2_structural_CI.pdf"),width = 11,height = 11)
 
-CI_plot<-all_s%>%slice(which(death_threshold%%1==0&prot_group=="full"))%>%
+CI_plot<-all_s%>%slice(which(prot_group=="full"))%>%
   ggplot(aes(x = day,y=estimate.rho,color=prot_group))+geom_line(color="#388659")+
   geom_ribbon(aes(ymax=upper,ymin=lower),alpha=.2)+theme_classic()+
   facet_wrap(death_threshold~.)+theme(legend.position = "none")+ggtitle("Full SARS-CoV-2 proteome")+
   xlab("days from death threshold")
 
-ggsave(CI_plot,file="SI_Full_SARS-CoV-2_CI.pdf",width = 11,height = 11)
+ggsave(CI_plot,file=paste0(Ensemble_PATH,"/plots/SI_figures/SI_Full_SARS-CoV-2_CI.pdf"),width = 11,height = 11)
 
 
 country_count<-all_s%>%ggplot(aes(x=day,y = Countries))+geom_line()+theme_classic()+

@@ -1,12 +1,11 @@
 ##set path to ensembleMHC-Covid directory
-##make sure it does not end with a "/" (i.e. ~/EnsembleMHC-Covid19 )
 Ensemble_PATH="~/Covid-19/EnsembleMHC-Covid19"
 dataset_path<-paste0(Ensemble_PATH,"/datasets")
 
-P_sum_matrix_path<-paste0(Ensemble_PATH,"/datasets/P_sum_median_1000_boot.R")
-pred_peptides<-paste0(Ensemble_PATH,"/datasets/predicted_corona_peptides.csv")
-all_pep_path<-paste0(Ensemble_PATH,"/datasets/all_peptides_prefilter.csv")
-filter_pep_path<-paste0(Ensemble_PATH,"/datasets/all_peptides_passing_score_filter_summarized_by_FDR.csv")
+P_sum_matrix_path <- paste0(Ensemble_PATH,"/datasets/P_sum_median_1000_boot.R")
+pred_peptides <- paste0(Ensemble_PATH,"/datasets/predicted_corona_peptides.csv")
+all_pep_path <- paste0(Ensemble_PATH,"/datasets/all_peptides_prefilter.csv")
+filter_pep_path <- paste0(Ensemble_PATH,"/datasets/all_peptides_passing_score_filter_summarized_by_FDR.csv")
 
 
 
@@ -50,7 +49,8 @@ c25 <- c(
 )
 
 #read in the coronavirus predictions 
-corona_data<-read.csv(pred_peptides,stringsAsFactors = F)
+corona_data<-fread(pred_peptides,stringsAsFactors = F)
+
 #calculate peptide probabilities 
 #start by iterating through every unique HLA
 pep_probs<-lapply(unique(corona_data$HLA),function(w){

@@ -268,7 +268,7 @@ norm_df_Death$source[which(norm_df_Death$source=="Structural_proteins")]<-"SARS-
 #norm_df_Death$source[which(norm_df_Death$source=="All_proteins")]<-"entire SARS-CoV-2 proteome"
 norm_df_Death$source<-as.factor(norm_df_Death$source)
 sig<-subset(norm_df_Death,sig==1)
-#table(norm_df_Death$thes[which(norm_df_Death$source=="Structural Proteins")])[2]/sum(table(norm_df_Death$thes[which(norm_df_Death$source=="Structural Proteins")]))
+
 
 death_plot<-ggplot(norm_df_Death,aes(days,correlation,group=confirmed))+geom_line(aes(color=confirmed))+
   scale_color_viridis()+
@@ -298,6 +298,7 @@ day_point_plots<-lapply(1:5,function(w){
 
 corrs<-do.call(ggarrange,c(day_point_plots,list(nrow=1)))
 ggsave(corrs,filename = paste0(Ensemble_PATH,"/plots/main_figures/Figure_3B.pdf"),width = 14.22,height = 2.65)
+
 #create box plots figure 3C
 day_point_boxes<-lapply(c(1,6,12,17,22),function(day){
   #get day specific data for the selected daya

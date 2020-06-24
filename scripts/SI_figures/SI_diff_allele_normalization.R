@@ -160,9 +160,7 @@ allele_freq_list<-lapply(test_set,function(w){
   w<-all_HLA_data[str_which(all_HLA_data$population,w),]
   colnames(w)<-c("HLA","pop","allele_freq","n")
   w$HLA<-str_remove(w$HLA,"\\*")
-  total_n<-w%>%
-    #slice(which(HLA%in%sel_HLA))%>%
-    mutate(country=name)%>%select(pop,n)%>%unique()%>%mutate(n_total=sum(n))%>%pull(n_total)%>%unique()
+  total_n<-w%>%mutate(country=name)%>%select(pop,n)%>%unique()%>%mutate(n_total=sum(n))%>%pull(n_total)%>%unique()
   
   
   #all allele mean

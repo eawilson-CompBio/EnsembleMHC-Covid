@@ -3,7 +3,6 @@ data_path<-"~/Covid-19/EnsembleMHC-Covid19/datasets/"
 library(ggthemes)
 library(ggpubr)
 library(ggplot2)
-library(dplyr)
 library(parallel)
 library(data.table)
 library(stringr)
@@ -16,17 +15,22 @@ library(ggridges )
 library(reshape2)
 library(patchwork)
 library(data.table)
+library(dplyr)
+
+#calculate PPV
 PPV<-function(x){
   table(x)["target"]/sum(table(x))
 }
+
+#calculate F1
 F1<-function(x,num_of_pos){
   PPV<-table(x)["target"]/sum(table(x))
   recall=table(x)["target"]/num_of_pos
-  #(1+(beta^2))*((PPV*recall)/((beta^2)*PPV)+recall)
   2*((PPV*recall)/(PPV+recall))
   
 }
-slice<-dplyr::slice
+
+#slice<-dplyr::slice
 
 
 #set algorithms vector
@@ -38,7 +42,7 @@ load(paste0(data_path,"P_sum_median_1000_boot.R"))
 #read in the coronavirus predictions 
 files<-list.files(path=paste0(data_path,"tumor_predictions/"),pattern="csv",full.names = T)
 
-
+#calcualte percentile score mhcflurry presentation 
 xx<-fread(list.files(paste0(data_path,"tumor_predictions/"),pattern = "pred.out",full.names = T))
 xx$HLA<-str_remove(xx$HLA,"HLA-")
 mhcflurry_thres<-do.call(rbind,lapply(unique(xx$HLA),function(q){
@@ -46,10 +50,10 @@ mhcflurry_thres<-do.call(rbind,lapply(unique(xx$HLA),function(q){
   c(q,quantile(tmp$mhcflurry_presentation_score,.98),quantile(tmp$mhcflurry_presentation_score,.995))
 }))%>%data.frame()
 colnames(mhcflurry_thres)<-c("HLA","2","0.5")
-
 mhcflurry_thres$`2`<-as.numeric(as.character(  mhcflurry_thres$`2`))
 mhcflurry_thres$`0.5`<-as.numeric(as.character(  mhcflurry_thres$`0.5`))
 ######
+
 all_out<-do.call(rbind,lapply(files,function(f){
 print(f)
 cell_line_data<-fread(f)
@@ -97,10 +101,7 @@ all_counts<-do.call(rbind,pep_probs)
 sel_alleles<-unique(all_counts$HLA)
 
 
-#all_counts$HLA<-as.character(all_counts$HLA)
-#all_counts$HLA<-sample(all_counts$HLA)
-#Summarize by allele and filter for peptides that are less than or equal to 5%
-
+#calclate PPV, recall, and F1 for algorithms with percentile score
 algo_percentile<-c("mhcflurry_affinity_percentile","MixMHCpred","netMHC_affinity","netMHCpan_EL_affinity","netstab_affinity")
 F1_out<-do.call(rbind,lapply(c(.5,2),function(i){
 thres=i
@@ -119,8 +120,8 @@ data.frame(algo=colnames(score),F1=as.numeric(score["f",]),PPV=as.numeric(score[
 F1_out$qual<-"high"
 F1_out$qual[which(F1_out$threshold==.5)]<-"low"
 
-
-#conveert pickpoct to ic 50
+#calculate metrics for pickpocket affinity
+#convert pickpoct to ic 50
 cell_line_data$pickpocket_affinity<-50000^(1-cell_line_data$pickpocket_affinity)
 algo_BA<-c("pickpocket_affinity")
 F1_out_BA<-do.call(rbind,lapply(c(50,500),function(i){
@@ -141,12 +142,12 @@ F1_out_BA$qual<-"high"
 F1_out_BA$qual[which(F1_out_BA$threshold==50)]<-"low"
 
 
-
+#calculate metrics for MHCflurry presentation
 F1_out_MHC<-do.call(rbind,lapply(c(2,.5),function(i){
     thres=i
     tmp<-cell_line_data%>%data.frame()
     tmp<-tmp[,c("peptide","HLA","mhcflurry_presentation_score","ident")]
-    thres<-mhcflurry_thres[,c("HLA",as.character(i))]%>%dplyr::slice(which(HLA%in%unique(tmp$HLA)))
+    thres<-mhcflurry_thres[,c("HLA",as.character(i))]%>%slice(which(HLA%in%unique(tmp$HLA)))
     score=thres[,as.character(i)]
     names(score)<-thres$HLA
     
@@ -162,7 +163,6 @@ F1_out_MHC<-do.call(rbind,lapply(c(2,.5),function(i){
 
 }))
 F1_out_MHC$qual<-"high"
-#F1_out_MHC$qual<-"high"
 F1_out_MHC$qual[which(F1_out_MHC$threshold==0.5)]<-"low"
 
 F1_ensemble<-do.call(rbind,lapply(c(.5,.05),function(i){
@@ -183,6 +183,7 @@ df$cell_line<-str_extract(f,"(?<=\\/)(CL|GB|ME|OV).+(?=_combo)")
   df
 }))
 
+
 all_out$algo<-as.character(all_out$algo)
 all_out$qual[which(all_out$qual=="low")]<-"restrictive"
 all_out$qual[which(all_out$qual=="high")]<-"permissive"
@@ -193,7 +194,7 @@ all_out$algo[which(all_out$algo=="netMHCpan_EL_affinity")]<-"netMHCpan-4.0-EL"
 all_out$algo[which(all_out$algo=="netMHC_affinity")]<-"netMHC-4.0"
 all_out$algo[which(all_out$algo=="mhcflurry_affinity_percentile")]<-"MHCflurry-affinity"
 all_out$algo[which(all_out$algo=="mhcflurry_presentation_score")]<-"MHCflurry-presentation"
-#all_out$algo[which(all_out$algo=="mhcflurry_affinity")]<-"MHCflurry-affinity-BA"
+
 
 all_out$cell_line[which(all_out$cell_line=="CLL_DFCI-5283_2018")]<-"CLL C"
 all_out$cell_line[which(all_out$cell_line=="CLL_DFCI-5328_20180512")]<-"CLL B"
