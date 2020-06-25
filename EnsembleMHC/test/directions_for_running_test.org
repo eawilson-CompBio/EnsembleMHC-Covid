@@ -1,0 +1,10 @@
+* Directions for testing EnsembleMHC
+** step 1: split sample protein fasta into peptides
+
+Rscript ../scripts/split_prot.R test.prot
+
+** step 2: run the EnsembleMHC pipeline
+
+*** step 2.1: EnsembleMHC supports 52 HLA alleles. For a list of alleles, consult the HLA_list.txt file in EnsembleMHC/scripts/HLA_list.txt
+
+
