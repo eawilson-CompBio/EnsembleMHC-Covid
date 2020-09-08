@@ -11,3 +11,5 @@ if on mac
 
 stringr
 BioStrings
+data.table
+dplyr
