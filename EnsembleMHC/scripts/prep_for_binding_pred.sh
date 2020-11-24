@@ -2,7 +2,7 @@
 
 HLA=$1
 file=$2
-MHC=$3
+source $3
 #HLA_link=$(realpath $HLA_list)
 #HLA=${HLA_list%%_*}
 len=(8 9 10 11 12 13 14)
@@ -24,11 +24,11 @@ do
     len_suffix=${i##*_}
     file=$(realpath $i)
     net_HLA=${HLA:0:7}${HLA:8}
-    echo  -e "$MHC/netMHCpan-4.0/netMHCpan -f $i -p -a $HLA\tnetMHCpan-EL_$len_suffix" >> "$HLA"_run_list.txt
-    echo  -e "$MHC/netMHCstabpan-1.0/netMHCstabpan -f $file -p -a $HLA\tnetMHCstab_$len_suffix" >> "$HLA"_run_list.txt
-    echo  -e "$MHC/netMHC-4.0/netMHC -f $file -p -a $net_HLA\tnetMHC_$len_suffix" >> "$HLA"_run_list.txt
-    echo  -e "$MHC/pickpocket-1.1/PickPocket -f $file -p -a $HLA\tpickpocket_$len_suffix" >> "$HLA"_run_list.txt
-    echo  -e "$MHC/MixMHCpred-2.0.2/MixMHCpred -i $file -a $HLA -o MixMHCpred_$len_suffix\ttmp_MIX" >> "$HLA"_run_list.txt
+    echo  -e "$NETMHCPAN -f $i -p -a $HLA\tnetMHCpan-EL_$len_suffix" >> "$HLA"_run_list.txt
+    echo  -e "$NETMHCSTABPAN -f $file -p -a $HLA\tnetMHCstab_$len_suffix" >> "$HLA"_run_list.txt
+    echo  -e "$NETMHC -f $file -p -a $net_HLA\tnetMHC_$len_suffix" >> "$HLA"_run_list.txt
+    echo  -e "$PICKPOCKET -f $file -p -a $HLA\tpickpocket_$len_suffix" >> "$HLA"_run_list.txt
+    echo  -e "$MIXMHCPRED -i $file -a $HLA -o MixMHCpred_$len_suffix\ttmp_MIX" >> "$HLA"_run_list.txt
     
 done
 

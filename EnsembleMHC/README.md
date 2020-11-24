@@ -11,12 +11,12 @@ In order to run EnsembleMHC you will need to download the following MHC-I predic
 *  [netMHCpan-4.0](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/9-Downloads.php#)
 *  [netMHCstabpan-1.0](https://services.healthtech.dtu.dk/services/NetMHCstabpan-1.0/9-Downloads.php#)
 *  [pickpocket-1.1](https://services.healthtech.dtu.dk/services/PickPocket-1.1/9-Downloads.php#)
-*  [mhcflurry](https://github.com/openvax/mhcflurry/releases/tag/1.6.0) (note: We recommend that you use the [install_mhcflurry.sh](scripts/install_mhcflurry.sh) script located in the script folder)
+*  [mhcflurry-1.6.0](https://github.com/openvax/mhcflurry/releases/tag/1.6.0) (note: We recommend that you use the [install_mhcflurry.sh](scripts/install_mhcflurry.sh) script located in the script folder)
 
 Be sure to follow the installation instructions of each algorithmm carefully. These algorithms can be installed at any location, however, be sure to update the [ALGORITHMS_PATHS.sh](ALGORITHMS_PATHS.sh) script with the absolute path to each algorithm. 
 
 
-### other dependancies 
+### Other dependancies 
 
 * [Anaconda](https://docs.anaconda.com/anaconda/install/) 
 

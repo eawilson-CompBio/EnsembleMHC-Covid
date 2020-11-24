@@ -3,6 +3,7 @@
 #set the interal field seperato
 
 run_file="$1"
+CORES=$2
 
 #function to make gnu parallel run the commands that i want
 run_pred () {
@@ -11,5 +12,5 @@ run_pred () {
     eval ${a[0]} >> ${a[1]}
 }
 export -f run_pred
-cat $run_file | parallel -j $(nproc) run_pred {}
+cat $run_file | parallel -j $CORES run_pred {}
 
