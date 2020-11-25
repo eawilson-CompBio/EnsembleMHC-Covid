@@ -1,6 +1,6 @@
 #!/bin/bash
 source activate mhcflurry-env
-export PATH_FILE=/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/EnsembleMHC/ALGORITHM_PATHS.sh
+export PATH_FILE=/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/EnsembleMHC/ALGORITHM_PATHS
 
 source $PATH_FILE
 
@@ -13,7 +13,7 @@ OUTPUT=''
 PSUM=''
 DEBUG=false
 print_usage() {
-    printf '%s\n' "Usage: bash EnsembleMHC.sh -p protein -a HLA -t number of threads -o output name (do not use spaces in name) -m PSUM matrix (parameterization summary matrix)"
+    printf '%s\n' "Usage: EnsembleMHC -p protein -a HLA -t number of threads -o output name (do not use spaces in name) -m PSUM matrix (parameterization summary matrix)"
 }
 
 while getopts 'p:ha:t:o:m:d' flag; do

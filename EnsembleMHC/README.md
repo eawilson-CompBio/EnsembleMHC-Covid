@@ -13,10 +13,10 @@ In order to run EnsembleMHC you will need to download the following MHC-I predic
 *  [pickpocket-1.1](https://services.healthtech.dtu.dk/services/PickPocket-1.1/9-Downloads.php#)
 *  [mhcflurry-1.6.0](https://github.com/openvax/mhcflurry/releases/tag/1.6.0) (note: We recommend that you use the [install_mhcflurry.sh](scripts/install_mhcflurry.sh) script located in the script folder)
 
-Be sure to follow the installation instructions of each algorithmm carefully. These algorithms can be installed at any location, however, be sure to update the [ALGORITHMS_PATHS.sh](ALGORITHMS_PATHS.sh) script with the absolute path to each algorithm. 
+Be sure to follow the installation instructions of each algorithm carefully. These algorithms can be installed at any location, however, be sure to update the [ALGORITHMS_PATHS.sh](ALGORITHMS_PATHS.sh) script with the absolute path to each algorithm. 
 
 
-### Other dependancies 
+### Other dependencies 
 
 * [Anaconda](https://docs.anaconda.com/anaconda/install/) 
 
@@ -27,7 +27,7 @@ Be sure to follow the installation instructions of each algorithmm carefully. Th
 
 * [R](https://www.r-project.org/)
 
-* gnu-sed (only appplicable if using macOS). This can be accomplised using homebrew
+* gnu-sed (only applicable if using macOS). This can be accomplished using homebrew
   
   Download homebrew
 	```bash
@@ -45,7 +45,7 @@ Be sure to follow the installation instructions of each algorithmm carefully. Th
 
 ### permissions
 
-In order for operate EnsembleMHC as presented in the tutrial, give excutable permission to EnsembleMHC.
+In order for operate EnsembleMHC as presented in the tutorial, give executable permission to EnsembleMHC.
 
 ``` bash
 chmod +x EnsembleMHC
@@ -55,17 +55,36 @@ chmod +x EnsembleMHC
 
 ## Usage
 
-To see a the list of flags avaiable to Ensemblemhc, enter `EnsembleMHC -h`
+To see a the list of flags available to EnsembleMHC, enter `EnsembleMHC -h`
 
-* `-p` Specifiy target protein/s for predictions. Proteins must be in FASTA format.
+* `-p` Specify target protein/s for predictions. Proteins must be in FASTA format.
 	
-* `-a` Specifiy target HLA. A list of the supported HLAs can be seen [here](scripts/HLA_list.txt)
+* `-a` Specify target HLA. A list of the supported HLAs can be seen [here](scripts/HLA_list.txt)
 	
-* `-t` Specifiy the number of threads to EnsembleMHC. If left unassigned, the number of threads will default to the number of avaiable cores.
+* `-t` Specify the number of threads to EnsembleMHC. If left unassigned, the number of threads will default to the number of available cores.
 	
 * `-o` provide output name for the prediction folder.
     
-* `-m` The parameterization summary matrix. This can be left blank when using the default algorithms and alleles. However, the user is ablehas the option to provide a custom parameterization summary matrix. (see allele parameterization)
+* `-m` The parameterization summary matrix. This can be left blank when using the default algorithms and alleles. However, the user has the option to provide a custom parameterization summary matrix. (see allele parameterization)
 
 * `-d` add this flag to turn on debug mode. This will generate more verbose outputs.
+
+## test 
+
+You can test your installation of EnsembleMHC by navigating to the test directory and enter the following commands.
+
+``` bash
+cd test/
+
+../EnsembleMHC -a HLA-A02:01 -p test.prot -o EnsembleMHC_test 
+
+```
+
+To check if the expected output was generated, you can enter the following command
+
+``` bash
+diff EnsembleMHC_test/HLA-A02\:01_peptideFDR_pred.csv EnsembleMHC_predict.compare | wc -l
+```
+If any number other than 0 is returned, then there are potential errors in the install
+
 
