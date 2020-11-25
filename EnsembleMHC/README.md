@@ -57,15 +57,15 @@ chmod +x EnsembleMHC
 
 To see a the list of flags avaiable to Ensemblemhc, enter `EnsembleMHC -h`
 
-	* `-p` Specifiy target protein/s for predictions. Proteins must be in FASTA format.
+* `-p` Specifiy target protein/s for predictions. Proteins must be in FASTA format.
 	
-	* `-a` Specifiy target HLA. A list of the supported HLAs can be seen [here](scripts/HLA_list.txt)
+* `-a` Specifiy target HLA. A list of the supported HLAs can be seen [here](scripts/HLA_list.txt)
 	
-	* `-t` Specifiy the number of threads to EnsembleMHC. If left unassigned, the number of threads will default to the number of avaiable cores.
+* `-t` Specifiy the number of threads to EnsembleMHC. If left unassigned, the number of threads will default to the number of avaiable cores.
 	
-	* `-o` provide output name for the prediction folder.
+* `-o` provide output name for the prediction folder.
     
-	* `-m` The parameterization summary matrix. This can be left blank when using the default algorithms and alleles. However, the user is ablehas the option to provide a custom parameterization summary matrix. (see allele parameterization)
+* `-m` The parameterization summary matrix. This can be left blank when using the default algorithms and alleles. However, the user is ablehas the option to provide a custom parameterization summary matrix. (see allele parameterization)
 
-	* `-d` add this flag to turn on debug mode. This will generate more verbose outputs.
+* `-d` add this flag to turn on debug mode. This will generate more verbose outputs.
 
