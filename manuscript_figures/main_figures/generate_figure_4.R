@@ -1,4 +1,4 @@
-#data path and ensembleMHC path
+# data path and ensembleMHC path
 data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
 Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
 library(ggthemes)
@@ -16,7 +16,7 @@ library(pwr)
 library(reshape2)
 
 
-load(paste0(data_path,"selected_countries.R"))
+load(paste0(data_path, "selected_countries.R"))
 data("pop")
 
 #-------------------------------------------------------
@@ -98,7 +98,9 @@ death_threshold_specific_corr_covariate <- function(death_threshold, MIN_countri
 
   cor_data$covar <- row.names(cor_data)[str_which(row.names(cor_data), "[A-Za-z]$")]
 
-  cor_data%>%group_by(covar)%>%mutate(p_value=p.adjust(p_value,method = 'fdr'))
+  cor_data %>%
+    group_by(covar) %>%
+    mutate(p_value = p.adjust(p_value, method = "fdr"))
 }
 
 # calculate adjusted R
@@ -349,7 +351,7 @@ countryEMPscore <- countryEMPscore[-which(countryEMPscore$country %in% c("Taiwan
 # obesity data age standardized BMI > 30
 #------------------------------
 
-obesity <- fread(paste0(data_path,"covariate_data/clean_data/Obseity_age_standardized.csv")) %>% data.frame()
+obesity <- fread(paste0(data_path, "covariate_data/clean_data/Obseity_age_standardized.csv")) %>% data.frame()
 
 # fix diff country names
 obesity <- fix_grab_data_names(obesity, country_names)
@@ -363,7 +365,7 @@ colnames(obesity) <- c("Country", "percentage_obese")
 #------------------------------
 # overweight data age standardized BMI >25
 #------------------------------
-overweight <- fread(paste0(data_path,"covariate_data/clean_data/Overweight_age_standardized.csv")) %>% data.frame()
+overweight <- fread(paste0(data_path, "covariate_data/clean_data/Overweight_age_standardized.csv")) %>% data.frame()
 
 # fix diff country names
 overweight <- fix_grab_data_names(overweight, country_names)
@@ -377,7 +379,7 @@ colnames(overweight) <- c("Country", "percentage_overweight")
 #------------------------------
 # mean BMI
 #------------------------------
-mean_BMI <- fread(paste0(data_path,"covariate_data/clean_data/mean_BMI_by_country.csv")) %>% data.frame()
+mean_BMI <- fread(paste0(data_path, "covariate_data/clean_data/mean_BMI_by_country.csv")) %>% data.frame()
 
 # fix diff country names
 mean_BMI <- fix_grab_data_names(mean_BMI, country_names)
@@ -391,7 +393,7 @@ colnames(mean_BMI) <- c("Country", "avg_BMI")
 #--------------------------------------------
 # health expenderature as a percentage of GDP
 #--------------------------------------------
-health_per_GPD <- fread(paste0(data_path,"covariate_data/clean_data/health_expend_as_percentageGDP.csv")) %>% data.frame()
+health_per_GPD <- fread(paste0(data_path, "covariate_data/clean_data/health_expend_as_percentageGDP.csv")) %>% data.frame()
 
 # fix diff country names
 health_per_GPD <- fix_grab_data_names(health_per_GPD, country_names)
@@ -459,7 +461,7 @@ sex_dist <- sex_dist %>%
 #-----------------------------------------------------------------------------------------
 # General government expenditure on health as a percentage of total government expenditure
 #-----------------------------------------------------------------------------------------
-health_expend <- fread(paste0(data_path,"covariate_data/clean_data/expend_by_gen_gov_and_comp_scheme_per.csv")) %>% data.frame()
+health_expend <- fread(paste0(data_path, "covariate_data/clean_data/expend_by_gen_gov_and_comp_scheme_per.csv")) %>% data.frame()
 
 # fix diff country names
 health_expend <- fix_grab_data_names(health_expend, country_names)
@@ -473,7 +475,7 @@ colnames(health_expend) <- c("Country", "perc_expend")
 #--------------------------------------------
 # deaths by different metrics
 #--------------------------------------------
-ncom <- fread(paste0(data_path,"covariate_data/clean_data/death_by_noncomm_dis.csv")) %>%
+ncom <- fread(paste0(data_path, "covariate_data/clean_data/death_by_noncomm_dis.csv")) %>%
   data.frame() %>%
   slice(which(Year == 2016))
 
@@ -523,7 +525,7 @@ non_com_data <- ncom_proc %>%
 #-----------------------------------------------------------------------------------------
 # Blood pressure
 #-----------------------------------------------------------------------------------------
-Blood_pressure <- fread(paste0(data_path,"covariate_data/clean_data/BP_by_country.csv")) %>% data.frame()
+Blood_pressure <- fread(paste0(data_path, "covariate_data/clean_data/BP_by_country.csv")) %>% data.frame()
 
 # fix diff country names
 Blood_pressure <- fix_grab_data_names(Blood_pressure, country_names)
@@ -588,18 +590,19 @@ tab <- table(df_death_cor$covar, df_death_cor$sig)[, 2] / table(df_death_cor$cov
 
 
 # best models (SI)
-top_models <- fread(paste0(data_path,"covariate_data/best_mod/best_model_data.csv"))
+top_models <- fread(paste0(data_path, "covariate_data/best_mod/best_model_data.csv"))
 
 
-df<- top_models %>%
+df <- top_models %>%
   group_by(ident) %>%
-  summarise(med = median(r2), sig = table(p_value <= .05)[2] / sum(table(p_value <= .05)))%>%
-  arrange(med) %>% 
-  melt(id.vars=c("ident")) 
+  summarise(med = median(r2), sig = table(p_value <= .05)[2] / sum(table(p_value <= .05))) %>%
+  arrange(med) %>%
+  melt(id.vars = c("ident"))
 
-df$ident<-factor(df$ident,levels = df$ident[which(df$variable=="med")][order(df$value[which(df$variable=="med")],decreasing = T)])
+df$ident <- factor(df$ident, levels = df$ident[which(df$variable == "med")][order(df$value[which(df$variable == "med")], decreasing = T)])
 
 df %>%
   ggplot(aes(x = ident, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme(axis.text.x = element_text(angle = 90))
+
