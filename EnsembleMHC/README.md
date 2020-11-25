@@ -38,7 +38,16 @@ Be sure to follow the installation instructions of each algorithmm carefully. Th
 	brew install gnu-sed
 	```
 
+  Download gnu-parallel
+	```bash
+	brew install parallel
+	```
+
+
 ### setup 
+ 
+Several of the files need to given excutable permissions in order to run properly
+
 
 
 

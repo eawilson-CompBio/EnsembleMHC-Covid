@@ -1,0 +1,187 @@
+#!/bin/bash
+source activate mhcflurry-env
+export PATH_FILE=/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/EnsembleMHC/ALGORITHM_PATHS.sh
+
+source $PATH_FILE
+
+
+
+protein=''
+HLA=''
+CORES=''
+OUTPUT=''
+PSUM=''
+DEBUG=false
+print_usage() {
+    printf '%s\n' "Usage: bash EnsembleMHC.sh -p protein -a HLA -t number of threads -o output name (do not use spaces in name) -m PSUM matrix (parameterization summary matrix)"
+}
+
+while getopts 'p:ha:t:o:m:d' flag; do
+  case "${flag}" in
+    p) protein="${OPTARG}" ;;
+    a) HLA="${OPTARG}" ;;
+    t) CORES="${OPTARG}" ;;
+    o) OUTPUT="${OPTARG}" ;;
+    m) PSUM="${OPTARG}" ;;
+    d) DEBUG='true' ;;
+    h) print_usage
+       exit 1 ;;
+  esac
+done
+
+if [[ -z ${HLA} ]]
+then
+    echo "Error: Please specify an HLA!"
+    exit 0
+fi
+
+HLA=$(echo $HLA | tr -d '*' )
+
+if grep -Fxq "$HLA" "$ENSEMBLEMHC_PATH"/scripts/HLA_list.txt
+then
+    echo "HLA: "$HLA
+else
+    echo -e  "ERROR: HLA: $HLA is either not supported by EnsembleMHC or formatted incorrectly. Please select one of the following:"
+    cat $ENSEMBLEMHC_PATH/scripts/HLA_list.txt
+    exit 0
+fi
+
+
+
+if [[ -z ${protein} ]]
+then
+    echo "ERROR: please specify a protein or list of proteins (FASTA format)"
+    exit 0
+fi
+
+
+if [[ -z ${CORES} ]]
+then
+    echo "number of threads not set. Defaulting to all available cores"
+    CORES=$(nproc)
+fi
+
+
+if [[ -z ${OUTPUT} ]]
+then
+    echo -e "no output name given. Defaulting to ...\n"
+    OUTPUT=$(echo $HLA prediction `date` | tr ' ', '_')
+    echo $OUTPUT
+fi
+
+
+if [[ -z ${PSUM} ]]
+then
+    echo "no parameterization summary matrix supplied. Using default"
+    PSUM=$ENSEMBLEMHC_PATH/allele_parameterization/default_parameterization_summary_matrix.csv
+fi
+
+
+if $DEBUG
+then
+    mkdir $OUTPUT
+    protein=$(realpath $protein)
+
+    cd $OUTPUT
+    #split the protein file
+    Rscript $ENSEMBLEMHC_PATH/scripts/split_prot.R $protein
+
+
+    ##prep for binding predictions and generate run file
+    ##the run file coordinates the parallelization of the predictions 
+    $ENSEMBLEMHC_PATH/scripts/prep_for_binding_pred.sh $HLA EnsembleMHC_pep_pred.tmp $PATH_FILE
+
+
+
+    cd $HLA"_predictions"
+    ##excute prediction for the nets and MixMHC
+    $ENSEMBLEMHC_PATH/scripts/par_run_predict.sh "$HLA"_run_list.txt $CORES
+
+    #add HLA column
+    Rscript $ENSEMBLEMHC_PATH/scripts/add_HLA_column.R *_pred.csv $HLA
+
+    ##excute MHCflurry
+    $ENSEMBLEMHC_PATH/scripts/run_mhcflurry.sh *_pred.csv
+
+    #clean up dir
+    $ENSEMBLEMHC_PATH/scripts/processing_and_clean_up.sh
+
+
+    for i in $(ls *out)
+    do
+	if [ $(cat $i | wc -l) -eq 0 ]
+	then
+	    echo "It appears that one or more the MHC-I prediction algorithms have failed. Please check that the paths in the ALGORITHMS_PATHS file are correct."
+	    exit 0
+	fi
+    done
+    
+    
+
+    #process files and generate whats need
+    Rscript $ENSEMBLEMHC_PATH/scripts/combine_files.R $HLA
+
+    #calculate peptideFDR
+    Rscript $ENSEMBLEMHC_PATH/scripts/calculate_peptideFDR.R "$HLA"_scored_peptides.csv $PSUM &>/dev/null
+    cd ..
+    mv $HLA"_predictions" $HLA"_predictions_tmp_files"
+    mv EnsembleMHC_pep_pred.tmp $HLA"_predictions_tmp_files"/
+    mv $HLA"_predictions_tmp_files"/"$HLA"_peptideFDR_pred.csv .
+else
+
+    mkdir $OUTPUT
+    protein=$(realpath $protein)
+
+    cd $OUTPUT
+    #split the protein file
+    Rscript $ENSEMBLEMHC_PATH/scripts/split_prot.R $protein &>/dev/null
+
+
+    ##prep for binding predictions and generate run file
+    ##the run file coordinates the parallelization of the predictions 
+    $ENSEMBLEMHC_PATH/scripts/prep_for_binding_pred.sh $HLA EnsembleMHC_pep_pred.tmp $PATH_FILE &>/dev/null
+
+
+
+    cd $HLA"_predictions"
+    ##excute prediction for the nets and MixMHC
+    $ENSEMBLEMHC_PATH/scripts/par_run_predict.sh "$HLA"_run_list.txt $CORES &>/dev/null
+
+    #add HLA column
+    Rscript $ENSEMBLEMHC_PATH/scripts/add_HLA_column.R *_pred.csv $HLA &>/dev/null
+
+    ##excute MHCflurry
+    $ENSEMBLEMHC_PATH/scripts/run_mhcflurry.sh *_pred.csv &>/dev/null
+
+    #clean up dir
+    $ENSEMBLEMHC_PATH/scripts/processing_and_clean_up.sh &>/dev/null
+
+   
+    for i in $(ls *out)
+    do
+	if [ $(cat $i | wc -l) -eq 0 ]
+	then
+	    echo "It appears that one or more the MHC-I prediction algorithms have failed. Please check that the paths in the ALGORITHMS_PATHS file are correct."
+	    exit 0
+	fi
+    done
+
+
+
+    #process files and generate whats need
+    Rscript $ENSEMBLEMHC_PATH/scripts/combine_files.R $HLA &>/dev/null
+
+    #calculate peptideFDR
+    Rscript $ENSEMBLEMHC_PATH/scripts/calculate_peptideFDR.R "$HLA"_scored_peptides.csv $PSUM &>/dev/null
+    cd ..
+    mv $HLA"_predictions" $HLA"_predictions_tmp_files"
+    mv EnsembleMHC_pep_pred.tmp $HLA"_predictions_tmp_files"/
+    mv $HLA"_predictions_tmp_files"/"$HLA"_peptideFDR_pred.csv .
+
+fi
+
+
+
+
+
+
