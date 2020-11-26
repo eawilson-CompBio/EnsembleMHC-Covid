@@ -1,6 +1,6 @@
 # Manuscript Figure generation
 
-This directory is primiarily for recreating the manuscript figures. As a general rule of thumb, generate the main text figures before the SI figures. 
+This directory is primarily for recreating the manuscript figures. As a general rule of thumb, generate the main text figures before the SI figures. 
 
 ## setup
  
