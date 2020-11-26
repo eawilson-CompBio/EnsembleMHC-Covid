@@ -1,15 +1,5 @@
-# path to EnsembleMHC directory
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-# Path to datasets
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-# path to all predicted corona peptides
-pred_peptides <- paste0(Ensemble_PATH, "/datasets/predicted_corona_peptides.csv")
-
-# this will write the file to the dataset directory. It will be used in subsequnt scripts
-all_pep_path <- paste0(Ensemble_PATH, "/datasets/all_peptides_prefilter.csv")
-filter_pep_path <- paste0(Ensemble_PATH, "/datasets/all_peptides_passing_score_filter_summarized_by_FDR.csv")
-
-
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 
 library(ggthemes)
 library(ggpubr)
@@ -31,10 +21,10 @@ library(ggridges)
 library(reshape2)
 
 
-# set algorithms vector
+# set algorithm name vector
 algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "MixMHCpred", "netMHC_affinity", "netMHCpan_EL_affinity", "netstab_affinity", "pickpocket_affinity")
 
-# load the P_sum matrix. This is teh stored algorithm and allele specific score and FDR
+# load parameterization summary matrix. This is the stored algorithm and allele specific score and FDR
 load(paste0(data_path, "P_sum_median_1000_boot.R"))
 
 # load colors for the change plot
@@ -60,7 +50,7 @@ corona_data <- fread(pred_peptides, stringsAsFactors = F)
 # calculate peptide probabilities
 # start by iterating through every unique HLA
 pep_probs <- lapply(unique(corona_data$HLA), function(w) {
-  # create a tmp variable with that consists of the corona virus predictions for one allele
+  # create a tmp variable consisting of the corona virus predictions for one allele
   tmp <- corona_data %>%
     dplyr::slice(which(corona_data$HLA == w)) %>%
     data.frame()
@@ -86,7 +76,7 @@ pep_probs <- lapply(unique(corona_data$HLA), function(w) {
     # return a data frame consisting of selected peptides, the algorithm FDR, and algorithm name
     data.frame(peptide = peptides, prob = neg, algo = q)
   })
-  # combine all of the prob_list elements in one dataframe, calculate the products of the FDRs associatied with detecting algorithms
+  # combine all of the prob_list elements in one dataframe, calculate the products of the FDRs associated with each detecting algorithms
   # merge with information regarding the gene and HLA
   prob_combo <- do.call(rbind, prob_list) %>%
     data.frame() %>%
@@ -97,7 +87,7 @@ pep_probs <- lapply(unique(corona_data$HLA), function(w) {
 
 
 
-# bind all the pep_prob list generated in the previous step
+# bind all elements of  pep_prob list generated in the previous step
 all_counts <- do.call(rbind, pep_probs)
 
 
@@ -109,7 +99,7 @@ sel_alleles <- unique(all_counts$HLA)
 prob_threshold <- .05
 
 # Summarize by allele and filter for peptides that are less than or equal to 5%
-# return a count of
+# return a count of number of peptides assigned to each protein with respect to each allele 
 df_all_proteins <- all_counts %>%
   slice(which(prob <= prob_threshold)) %>%
   group_by(HLA, gene) %>%
@@ -118,13 +108,13 @@ df_all_proteins <- all_counts %>%
 
 # convert gene name to character so orf1ab name can be corrected
 df_all_proteins$gene <- as.character(df_all_proteins$gene)
-# rename orf1ab  gene to make it match other gene names
+# rename orf1ab  gene to make it match other gene name formats
 df_all_proteins$gene[which(df_all_proteins$gene == "orf1ab")] <- "ORF1ab"
 # convert back to a factor
 df_all_proteins$gene <- factor(df_all_proteins$gene)
 # add name protein group name to the matrix
 df_all_proteins$type <- "All proteins"
-# make bar graph based on the all proteins. this is figure 1A
+# make bar graph based on the all proteins. This is figure 2A
 p1 <- df_all_proteins %>% ggplot(aes(x = factor(HLA, levels = rev(unique(HLA))), y = count, fill = gene)) +
   geom_bar(stat = "identity") +
   coord_flip() +
@@ -143,13 +133,13 @@ df_struct <- all_counts %>%
   summarise(count = length(gene))
 # set name of protein group
 df_struct$type <- "Structural proteins"
-# for plotting, HLAs with no predicted structural peptides are set to 0. This is to avoid unessessary dropping
+# for plotting, HLAs with no predicted structural peptides are set to 0. This is to avoid unessessary dropping of HLAs
 # This is done by looking for missing alleles, assigning a value of zero to an arbitrary structural protein, in this case the E protein
-# these addition counts are then combined with the df_struct matrix
+# these additional pseudo counts are then combined with the df_struct matrix
 df_struct <- rbind(df_struct %>% data.frame(), data.frame(HLA = unique(df_all_proteins$HLA)[-which(unique(df_all_proteins$HLA) %in% unique(df_struct$HLA))], gene = "E", count = 0, type = "Structural protein"))
 # factor the HLA names
 df_struct$HLA <- factor(df_struct$HLA, levels = rev(unique(df_struct$HLA)[order(unique(df_struct$HLA))]))
-# plot the bar graph for peptide-allele distrubtion for only structural proteins
+# plot the bar graph for peptide-allele distrubtion for only structural proteins. Figure 2B
 p2 <- df_struct %>% ggplot(aes(x = HLA, y = count, fill = gene)) +
   geom_bar(stat = "identity") +
   coord_flip() +
@@ -170,35 +160,36 @@ df_all_w_std <- df_all_proteins %>%
   mutate(std_all = std(total_count_all_proteins)) %>%
   mutate(pep_frac_all = total_count_all_proteins / sum(total_count_all_proteins))
 
+#print some stats
 median(df_all_w_std$total_count_all_proteins)
 max(df_all_w_std$total_count_all_proteins)
 min(df_all_w_std$total_count_all_proteins)
 IQR(df_all_w_std$total_count_all_proteins)
 
-IQR(df_all_w_std$total_count_all_proteins) / (quantile(df_all_w_std$total_count_all_proteins, .25) + quantile(df_all_w_std$total_count_all_proteins, .75))
 
-# combine all structural protein prediction and calcualt stander deviation
+# combine all structural protein predictions and calculate standard deviation
 df_struct_w_std <- df_struct %>%
   group_by(HLA) %>%
   summarise(total_count_struct = sum(count)) %>%
   mutate(std_struct = std(total_count_struct)) %>%
   mutate(pep_frac_struct = total_count_struct / sum(total_count_struct))
 
+#print some stats
 summary(df_struct_w_std$total_count_struct)
 IQR(df_struct_w_std$total_count_struct)
-IQR(df_struct_w_std$total_count_struct) / (quantile(df_struct_w_std$total_count_struct, .25) + quantile(df_struct_w_std$total_count_struct, .75))
+
 
 # merge both sets
 all_combo <- df_all_w_std %>% merge(df_struct_w_std)
 
-# The absolute difference in Z-score is calculated.
+# The absolute difference in peptide fraction by allele
 all_combo$delta <- all_combo$pep_frac_all - all_combo$pep_frac_struct
 
-# median pep frac
+# median peptide fraction
 med_pep_frac <- median(c(all_combo$pep_frac_all, all_combo$pep_frac_struct))
-# covert all alleles that change by less than one std dev to a NC. NC = no significant change
+# covert all alleles that change by less than the median peptide fraction to NC. NC = no significant change
 all_combo$HLA[which(abs(all_combo$delta) < med_pep_frac)] <- "NC"
-# set alpha levels by allele based on change. if the change by std >1 they have alpha of one, else alpha of .2
+# set alpha levels by allele based on change. if they change by  > median peptide fraction they have alpha of one, else alpha of .2
 all_combo$alpha <- 1
 all_combo$alpha[which(all_combo$HLA == "NC")] <- .2
 all_combo$HLA <- factor(all_combo$HLA)
@@ -211,22 +202,20 @@ p3 <- ggparcoord(all_combo, columns = c(4, 7), groupColumn = "HLA", scale = "glo
   xlab("") + theme_linedraw() + theme(legend.key.size = unit(2, "mm")) + ggtitle("relative change in peptide fraction")
 
 
-
-
-
-
-
 garg_1 <- ggarrange(p1, p2, common.legend = T, legend = "bottom")
+
+ggarrange(garg_1, p3)
 
 # ggsave(ggarrange(garg_1, p3), filename = paste0(Ensemble_PATH, "/plots/main_figures/Figure_2_pep_frac.pdf"), height = 12, width = 15)
 
-# save important files these will be referenced in downstream scripts
-# all of the predicted peptides (no FDR filter)
-
 # the following files will be useful down the line
-write.csv(all_counts, file = all_pep_path, row.names = F)
+# this will write the file to the dataset directory. It will be used in subsequnt scripts
 
-write.csv(df_all_proteins, file = filter_pep_path, row.names = F)
+# all peptides before FDR filter
+write.csv(all_counts, file = paste0(Ensemble_PATH, "/datasets/all_peptides_prefilter.csv"), row.names = F)
+
+# all peptides after FDR filter
+write.csv(df_all_proteins, file = paste0(Ensemble_PATH, "/datasets/all_peptides_passing_score_filter_summarized_by_FDR.csv"), row.names = F)
 # the dataframe of total number of peptide per allele for all proteins
 write.csv(df_all_w_std, paste0(data_path, "/identified_peptides_all_proteins_summarise_HLA_protein_counts.csv"), row.names = F)
 # teh dataframe of total number of peptide per allele for structural proteins

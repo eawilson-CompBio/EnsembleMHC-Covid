@@ -1,8 +1,8 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 load(paste0(data_path,"selected_countries.R"))
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-library(ggthemes)
+
 library(ggpubr)
 library(ggplot2)
 library(data.table)
@@ -14,17 +14,15 @@ library(lubridate)
 library(viridis)
 library(caret)
 library(pwr)
-library(regclass)
 
 
 data("pop")
-pdf_dir <- "~/Covid-19/EnsembleMHC-Covid19/revision_requests/revision_figures/pdf/"
+
 
 
 #-------------------------------------------------------
 # functions
 #-------------------------------------------------------
-pt2in <- function(x) {x*0.0138889}
 
 # min normalize function
 min_norm <- function(x) {
@@ -95,10 +93,8 @@ death_threshold_lm <- function(death_threshold, MIN_countries, method) {
     tmp <- score_and_death_pop %>% slice(which(days == i))
     tmp <- tmp %>% select(-All.proteins, -Deaths, -days, -country)
     tmp <- apply(tmp, 2, rank) %>% data.frame()
-    
-    # score<-summary(lm(death_per_pop~(tmp$avg_BMI+tmp$Structural.proteins+tmp$gt_sixityfive+tmp$blood_pressure),tmp))
-    # mod <- lm(death_per_pop~(tmp$avg_BMI+tmp$Structural.proteins+tmp$gt_sixityfive+tmp$blood_pressure+tmp$Cardiovascular_diseases+tmp$Diabetes_mellitus+tmp$perc_expend),tmp)
-    int_cor <- do.call(rbind, lapply(3:ncol(tmp), function(k) {
+
+      int_cor <- do.call(rbind, lapply(3:ncol(tmp), function(k) {
       mod1 <- lm(death_per_pop ~ (tmp$Structural.proteins + tmp[, k]), tmp)
       mod2 <- lm(death_per_pop ~ (tmp[, k]), tmp)
       cbind(
@@ -115,12 +111,6 @@ death_threshold_lm <- function(death_threshold, MIN_countries, method) {
     int_cor$r2 <- as.numeric(int_cor$r2)
     int_cor$p_value <- as.numeric(int_cor$p_value)
     int_cor
-    # score <- summary(mod)
-    # score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive),tmp))
-    # c(score$adj.r.squared,
-    #   pf(score$fstatistic[1],df1 = score$fstatistic[2],df2 = score$fstatistic[3],lower.tail = FALSE),
-    #   max(VIF(mod))
-    #   )
   }))
   cor_data %>%
     melt(id.vars = c("ident", "day", "threshold")) %>%
@@ -134,19 +124,7 @@ death_threshold_lm <- function(death_threshold, MIN_countries, method) {
     facet_wrap(ident ~ .) +
     geom_point(data = subset(cor_data, p_value <= .05), color = "red") +
     theme_pubclean()
-  # apply(sapply(1:thres,function(i){
-  #   #create subset of data at day i
-  #   tmp <- score_and_death_pop%>%slice(which(days==i))
-  #   tmp <- tmp %>% select(-All.proteins,-Deaths,-days,-country)
-  #   tmp <- apply(tmp,2,rank)%>%data.frame()
-  #
-  #   #score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive+tmp$blood_pressure),tmp))
-  #   #score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive),tmp))
-  #   #c(score$adj.r.squared,pf(score$fstatistic[1],df1 = score$fstatistic[2],df2 = score$fstatistic[3],lower.tail = FALSE))
-  #   cor(tmp)#[,2]
-  # }),1,median)
-  
-  
+
   do.call(cbind, lapply(1:thres, function(i) {
     # create subset of data at day i
     tmp <- score_and_death_pop %>% slice(which(days == i))
@@ -154,8 +132,6 @@ death_threshold_lm <- function(death_threshold, MIN_countries, method) {
     tmp <- apply(tmp, 2, rank) %>% data.frame()
     
     score <- varImp(lm(death_per_pop ~ (.), tmp))
-    # score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive),tmp))
-    # c(score$adj.r.squared,pf(score$fstatistic[1],df1 = score$fstatistic[2],df2 = score$fstatistic[3],lower.tail = FALSE))
     dim(score)
   }))
   
@@ -295,23 +271,16 @@ countryEMPscore <- countryEMPscore[-which(countryEMPscore$country %in% c("Taiwan
 # Current expenditure on health by general government and compulsory schemes (% of current expenditure on health)
 # https://apps.who.int/gho/data/node.main.HS05?lang=en
 
-# blood sugar higher than 7 mmol/L (type 2 definition) age standaradized
-# https://apps.who.int/gho/data/node.main.NCDRGLUCA?lang=en
-
 # death by non communicable diseases
 # https://apps.who.int/gho/data/view.main.NCDDEATHCAUSESNUMBERv?lang=en
 
 # there is no data for Hong knong or for taiwan so those are excluded
 
-
-# sort(obesity$V1[which(obesity$V1%in%country_names)])
-# sort(country_names)
-
 #------------------------------
 # obesity data age standardized BMI > 30
 #------------------------------
-setwd("~/Covid-19/EnsembleMHC-Covid19/datasets/")
-obesity <- fread("covariate_data/clean_data/Obseity_age_standardized.csv") %>% data.frame()
+
+obesity <- fread(paste0(data_path, "population_covariates/Obseity_age_standardized.csv")) %>% data.frame()
 
 # fix diff country names
 obesity <- fix_grab_data_names(obesity, country_names)
@@ -325,7 +294,7 @@ colnames(obesity) <- c("Country", "percentage_obese")
 #------------------------------
 # overweight data age standardized BMI >25
 #------------------------------
-overweight <- fread("covariate_data/clean_data/Overweight_age_standardized.csv") %>% data.frame()
+overweight <- fread(paste0(data_path, "population_covariates/Overweight_age_standardized.csv")) %>% data.frame()
 
 # fix diff country names
 overweight <- fix_grab_data_names(overweight, country_names)
@@ -339,7 +308,7 @@ colnames(overweight) <- c("Country", "percentage_overweight")
 #------------------------------
 # mean BMI
 #------------------------------
-mean_BMI <- fread("covariate_data/clean_data/mean_BMI_by_country.csv") %>% data.frame()
+mean_BMI <- fread(paste0(data_path, "population_covariates/mean_BMI_by_country.csv")) %>% data.frame()
 
 # fix diff country names
 mean_BMI <- fix_grab_data_names(mean_BMI, country_names)
@@ -353,7 +322,7 @@ colnames(mean_BMI) <- c("Country", "avg_BMI")
 #--------------------------------------------
 # health expenderature as a percentage of GDP
 #--------------------------------------------
-health_per_GPD <- fread("covariate_data/clean_data/health_expend_as_percentageGDP.csv") %>% data.frame()
+health_per_GPD <- fread(paste0(data_path, "population_covariates/health_expend_as_percentageGDP.csv")) %>% data.frame()
 
 # fix diff country names
 health_per_GPD <- fix_grab_data_names(health_per_GPD, country_names)
@@ -421,7 +390,7 @@ sex_dist <- sex_dist %>%
 #-----------------------------------------------------------------------------------------
 # General government expenditure on health as a percentage of total government expenditure
 #-----------------------------------------------------------------------------------------
-health_expend <- fread("covariate_data/clean_data/expend_by_gen_gov_and_comp_scheme_per.csv") %>% data.frame()
+health_expend <- fread(paste0(data_path, "population_covariates/expend_by_gen_gov_and_comp_scheme_per.csv")) %>% data.frame()
 
 # fix diff country names
 health_expend <- fix_grab_data_names(health_expend, country_names)
@@ -435,7 +404,7 @@ colnames(health_expend) <- c("Country", "perc_expend")
 #--------------------------------------------
 # deaths by different metrics
 #--------------------------------------------
-ncom <- fread("covariate_data/clean_data/death_by_noncomm_dis.csv") %>%
+ncom <- fread(paste0(data_path, "population_covariates/death_by_noncomm_dis.csv")) %>%
   data.frame() %>%
   slice(which(Year == 2016))
 
@@ -485,7 +454,7 @@ non_com_data <- ncom_proc %>%
 #-----------------------------------------------------------------------------------------
 # Blood pressure
 #-----------------------------------------------------------------------------------------
-Blood_pressure <- fread("covariate_data/clean_data/BP_by_country.csv") %>% data.frame()
+Blood_pressure <- fread(paste0(data_path, "population_covariates/BP_by_country.csv")) %>% data.frame()
 
 # fix diff country names
 Blood_pressure <- fix_grab_data_names(Blood_pressure, country_names)
@@ -497,15 +466,12 @@ Blood_pressure$Raised.blood.pressure..SBP.gt..140.OR.DBP.gt..90...age.standardiz
 # rename columns
 colnames(Blood_pressure) <- c("Country", "blood_pressure")
 
-
-
 #------------------------------
 # combine the datasets into one
 #------------------------------
 
 # create the list of data sets
-# drop BCG becasue there are NAs in the set
-list_of_data <- list(non_com_data, health_per_GPD, mean_BMI, overweight, obesity, health_expend, age_dist, Blood_pressure, sex_dist,gini_index)
+list_of_data <- list(non_com_data, health_per_GPD, mean_BMI, overweight, obesity, health_expend, age_dist, Blood_pressure, sex_dist)
 
 # merge data sets
 datasets <- Reduce(function(...) merge(..., by = c("Country")), list_of_data)
@@ -515,6 +481,7 @@ corr_data <- merge(datasets, countryEMPscore %>% select(Country = country, Struc
 
 
 colnames(corr_data)[1] <- "country"
+
 
 #--------------------------------------------------------------------
 # individual metric linear models
@@ -543,7 +510,7 @@ df_death_lm %>%
   theme(legend.position = "none") +
   geom_point(data = subset(df_death_lm[str_which(df_death_lm$ident, "\\+"), ], p_value <= .05), color = "red", size = .25)
 
-ggsave(df_death_lm, file = "combo_models.pdf", width = 512, height = 397)
+#ggsave(df_death_lm, file = "combo_models.pdf", width = 512, height = 397)
 
 df_death_lm %>%
   slice(-str_which(ident, "\\+")) %>%
@@ -576,6 +543,7 @@ bar_data_bin_models_plot<-bar_data_bin_models %>%
   theme_pubclean() +
   theme(legend.position = "none", axis.text.x = element_blank())+xlab("")
 
-ggsave(bar_data_bin_models_plot,filename = paste0(pdf_dir,"bar_plots_for_single_bin_models.pdf"),width = pt2in(997),height = pt2in(257))
+bar_data_bin_models_plot
+#ggsave(bar_data_bin_models_plot,filename = paste0(pdf_dir,"bar_plots_for_single_bin_models.pdf"),width = pt2in(997),height = pt2in(257))
 
 

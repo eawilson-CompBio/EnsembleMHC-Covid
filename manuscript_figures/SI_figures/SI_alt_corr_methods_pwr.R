@@ -1,5 +1,6 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggplot2)
 library(data.table)
 library(stringr)
@@ -436,6 +437,9 @@ PPV_with_respect_to_R <- do.call(rbind, lapply(seq(.1, 1, .1), function(R) {
 pwrplots <- pearson_pwr + spearman_pwr + kendall_pwr + plot_layout(ncol = 1, guides = "collect") +
   plot_annotation(title = "population EnsembleMHC score and death rate power ")
 
-ggsave(deathplots, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_deathplots_by_corr_methods.pdf"), height = 10, width = 10)
-ggsave(pwrplots, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_pwrplots_by_corr_methods.pdf"), height = 10, width = 10)
-ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_diff_R_value.pdf"), PPV_with_respect_to_R)
+deathplots
+pwrplots
+PPV_with_respect_to_R
+# ggsave(deathplots, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_deathplots_by_corr_methods.pdf"), height = 10, width = 10)
+# ggsave(pwrplots, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_pwrplots_by_corr_methods.pdf"), height = 10, width = 10)
+# ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_diff_R_value.pdf"), PPV_with_respect_to_R)

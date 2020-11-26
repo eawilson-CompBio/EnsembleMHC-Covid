@@ -1,20 +1,21 @@
-data_path="~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/"
-Ensemble_PATH="~/Covid-19/EnsembleMHC-Covid19"
-library(ggthemes)
-library(ggpubr)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggplot2)
 library(data.table)
 library(stringr)
-library(latex2exp)
 library(lubridate)
 library(tidyr)
 library(viridis)
-library(ggrepel)
 library(reshape2)
-library(pwr)
 library(wpp2019)
 library(dplyr)
 library(parallel)
+library(ggthemr)
+library(patchwork)
+library(LaplacesDemon)
+ggthemr("fresh")
+
 ##functions
 
 
@@ -46,37 +47,6 @@ EMP_score <- function(population,HLA_count) {
   )
 }
 
-# get individual day data for box plots
-get_day_data <- function(day, death_threshold, MIN_countries,countryEMPscore) {
-  # filter at a set number of deaths
-  # set days for time series analysis
-  # add days since it reached that point
-  day_data <- CoV_data_sel_countries %>%
-    slice(which(Deaths >= death_threshold)) %>%
-    group_by(country) %>%
-    mutate(days = as.numeric((today() - day_correction) - mdy(date))) %>%
-    mutate(days = max(days) - days)
-
-
-  # set the threshold of days so you know when to stop iterating once the number of countries decreases below threshold
-  thres <- table(day_data$days)[which(table(day_data$days) >= MIN_countries)]
-  thres <- as.numeric(names(thres)[length(thres)])
-
-  # mere the day data with the population data
-  score_and_death_pop <- day_data %>% merge(select_population)
-
-  # merge EMP scores and calculate deaths per million
-  score_and_death_pop <- score_and_death_pop %>%
-    group_by(country, days) %>%
-    mutate(pop = `2020` / 1000) %>%
-    mutate(death_per_pop = Deaths / pop) %>%
-    merge(countryEMPscore) %>%
-    select(country, death_per_pop, Deaths, days, All.proteins, Structural.proteins) %>%
-    slice(which(Deaths >= death_threshold))
-
-  # return day specific data
-  score_and_death_pop %>% slice(which(days == day))
-}
 
 #calculate correlation as a function of time
 death_threshold_specific_corr <- function(death_threshold, MIN_countries,countryEMPscore) {
@@ -154,14 +124,10 @@ death_threshold_specific_corr <- function(death_threshold, MIN_countries,country
   melted_df <- melted_df %>% merge(data.frame(days = as.numeric(names(tab_melt)), num_country = as.numeric(tab_melt)))
 
 
-  #  melt_df_pre$confirmed<-death_threshold
   melted_df$confirmed <- death_threshold
-  # melt_df_pre
   # return matrix
   melted_df
 }
-
-
 
 
 # load population data
@@ -182,12 +148,11 @@ day_correction <- as.numeric(today() - mdy("4/10/2020"))
 df_all_peptides <- read.csv(paste0(data_path, "all_peptides_prefilter.csv"))
 
 #load the HLA list
-load(paste0(data_path,"52_HLA_list.R"))
+load(paste0(data_path,"selected_alleles.R"))
 
 
 # generate the correlations reported in the paper -----------------------
 
-data_path="~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/"
 # read in the matrix of all proteins and structural proteins that were calculated previously
 df_all_proteins <- read.csv(paste0(data_path, "identified_peptides_all_proteins_summarise_HLA_protein_counts.csv"))
 df_struct <- read.csv(paste0(data_path, "identified_peptides_all_structural_proteins_only_summarise_HLA_protein_counts.csv"))
@@ -220,8 +185,7 @@ test_set[[which(country_list == "US")]] <- "USA"
 
 
 # set allele vector to the 52 selected alleles
-# sel_HLA <- unique(HLA_count$HLA)
-load(paste0(data_path,"52_HLA_list.R"))
+load(paste0(data_path,"selected_alleles.R"))
 
 # normalize the allele frequencies with respect to selected alleles
 allele_freq_list <- lapply(test_set, function(w) {
@@ -231,7 +195,7 @@ allele_freq_list <- lapply(test_set, function(w) {
   colnames(w) <- c("HLA", "pop", "allele_freq", "n")
   w$HLA <- str_remove(w$HLA, "\\*")
   total_n <- w %>%
-    slice(which(HLA %in% sel_HLA)) %>%
+    slice(which(HLA %in% sel_alleles)) %>%
     mutate(country = name) %>%
     select(pop, n) %>%
     unique() %>%
@@ -242,7 +206,7 @@ allele_freq_list <- lapply(test_set, function(w) {
   
   tmp <- w %>%
     mutate(eff_pop = allele_freq * n * 2) %>% # convert to allele count
-    slice(which(HLA %in% sel_HLA)) %>% # isolate the 52 alleles
+    slice(which(HLA %in% sel_alleles)) %>% # isolate the 52 alleles
     group_by(HLA) %>%
     summarise(allele_count = sum(eff_pop)) %>% # group aggreate by allele
     mutate(pop_freq = allele_count / sum(allele_count)) %>% # normalize allele count
@@ -265,7 +229,7 @@ allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, function(w) 
 
 # filter for number of select alleles
 # when randomly sampling there is not 52 alleles so This will need to be adjuested accordingly
-allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / length(sel_HLA) > .95)]
+allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / length(sel_alleles) > .95)]
 # allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / 52 > .95)]
 # get coroan virus data that correspondes to the selected alleles
 CoV_data_sel_countries <- all_data_clean[which(all_data_clean$Country.Region %in% names(allele_freq_list)), ]
@@ -329,18 +293,6 @@ values_from_paper <- df_Death %>% select(source,p_value,correlation)
 df_death_comp <- df_Death
 
 
-death_thres <- 50
-cor_set_real <- t(sapply(1:22, function(w) {
-  day <- w
-  day_point <- get_day_data(day, death_thres, 8,countryEMPscore = countryEMPscore)
-  dd <- day_point %>%
-    arrange(Structural.proteins) %>%
-    mutate(struct_prot_rank = 1:length(Structural.proteins)) %>%
-    arrange(death_per_pop) %>%
-    mutate(death_rank = 1:length(death_per_pop))
-  dd$group <- if_else(dd$struct_prot_rank <= median(dd$struct_prot_rank), "lower", "upper")
-  c(cor.test(dd$struct_prot_rank, dd$death_rank)$estimate, pvalue = p.adjust(cor.test(dd$struct_prot_rank, dd$death_rank)$p.value,method = "fdr"))
-})) %>% data.frame()
 
 
 #subsample data--------------------------------------
@@ -362,8 +314,7 @@ test_set[[which(country_list == "US")]] <- "USA"
 
 
 # set allele vector to the 52 selected alleles
-# sel_HLA <- unique(HLA_count$HLA)
-load(paste0(data_path, "52_HLA_list.R"))
+load(paste0(data_path, "selected_alleles.R"))
 
 # normalize the allele frequencies with respect to selected alleles
 allele_freq_list <- lapply(test_set, function(w) {
@@ -373,7 +324,7 @@ allele_freq_list <- lapply(test_set, function(w) {
   colnames(w) <- c("HLA", "pop", "allele_freq", "n")
   w$HLA <- str_remove(w$HLA, "\\*")
   total_n <- w %>%
-    slice(which(HLA %in% sel_HLA)) %>%
+    slice(which(HLA %in% sel_alleles)) %>%
     mutate(country = name) %>%
     select(pop, n) %>%
     unique() %>%
@@ -384,7 +335,7 @@ allele_freq_list <- lapply(test_set, function(w) {
 
   tmp <- w %>%
     mutate(eff_pop = allele_freq * n * 2) %>% # convert to allele count
-    slice(which(HLA %in% sel_HLA)) %>% # isolate the 52 alleles
+    slice(which(HLA %in% sel_alleles)) %>% # isolate the 52 alleles
     group_by(HLA) %>%
     summarise(allele_count = sum(eff_pop)) %>% # group aggreate by allele
     mutate(pop_freq = allele_count / sum(allele_count)) %>% # normalize allele count
@@ -407,8 +358,8 @@ allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, function(w) 
 
 # filter for number of select alleles
 # when randomly sampling there is not 52 alleles so This will need to be adjuested accordingly
-allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / length(sel_HLA) > .95)]
-# allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / 52 > .95)]
+allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / length(sel_alleles) > .95)]
+
 # get coroan virus data that correspondes to the selected alleles
 CoV_data_sel_countries <- all_data_clean[which(all_data_clean$Country.Region %in% names(allele_freq_list)), ]
 
@@ -427,7 +378,7 @@ for (rev_2 in 1:1000) {
 
   # get 108 unique randmoly sampled peptides
   peptide_sample <- sample(df_all_peptides %>% slice(which(prob <= .05))  %>% pull(peptide) %>% unique(), 108, replace = F)
-  #peptide_sample <- sample(df_all_peptides %>% slice(which(prob <= .05)) %>% slice(-which(gene %in% c("M", "N", "E", "S"))) %>% pull(peptide) %>% unique(), 108, replace = F)
+
   tmp_all_prots <- df_all_peptides %>%
     slice(which(prob <= .05)) %>%
     slice(which(peptide %in% peptide_sample)) %>%
@@ -437,7 +388,7 @@ for (rev_2 in 1:1000) {
     mutate(pep_frac = count / sum(count))
 
   if (nrow(tmp_all_prots) < 52) {
-    tmp_all_prots <- rbind(tmp_all_prots, data.frame(HLA = sel_HLA[-which(sel_HLA %in% tmp_all_prots$HLA)], count = 0, source = "All proteins", pep_frac = 0))
+    tmp_all_prots <- rbind(tmp_all_prots, data.frame(HLA = sel_alleles[-which(sel_alleles %in% tmp_all_prots$HLA)], count = 0, source = "All proteins", pep_frac = 0))
   }
 
   tmp_struct_prots <- tmp_all_prots
@@ -498,26 +449,16 @@ for (rev_2 in 1:1000) {
   norm_df_Death_sample$source <- as.factor(norm_df_Death_sample$source)
   sig <- subset(norm_df_Death_sample, sig == 1)
 
-  # c(table(norm_df_Death$sig) / sum(table(norm_df_Death$sig)),mean(norm_df_Death$correlation))
-
-#  resample[[rev_2]] <- data.frame(p_value = norm_df_Death_sample$p_value, cor = norm_df_Death_sample$correlation, iter = rev_2)
   resample_dist[[rev_2]] <-data.frame(norm_df_Death_sample ,iter=rev_2)
 }
 
 
-
-library(ggthemr)
-library(patchwork)
-ggthemr("fresh")
-
-
-
 KLD_data <- data.frame(SP = sapply(resample_dist, function(i) {
 
-  LaplacesDemon::KLD(px = i$correlation, py = df_death_comp$correlation[which(df_death_comp$source == "Structural_proteins")])$sum.KLD.px.py
+  KLD(px = i$correlation, py = df_death_comp$correlation[which(df_death_comp$source == "Structural_proteins")])$sum.KLD.px.py
 }), AP = sapply(resample_dist, function(i) {
 
-  LaplacesDemon::KLD(px = i$correlation, py = df_death_comp$correlation[which(df_death_comp$source == "All_proteins")])$sum.KLD.px.py
+  KLD(px = i$correlation, py = df_death_comp$correlation[which(df_death_comp$source == "All_proteins")])$sum.KLD.px.py
 })) %>% reshape2::melt()
 
 
@@ -530,29 +471,6 @@ KLD_box <- KLD_data %>% ggplot(aes(y = value, x = variable,fill=variable)) +
 
 wilcox.test(KLD_data$value[which(KLD_data$variable=="AP")],KLD_data$value[which(KLD_data$variable=="SP")])
 df <- do.call(rbind, resample_dist)
-
-med_cor<-df %>% group_by(days,confirmed) %>% summarise(med=median(correlation))
-wilcox_iters <- do.call(rbind, lapply(seq(250, 2000, 250), function(j) {
-  t(sapply(1:length(resample_dist), function(i) {
-    c(
-      ks.test(sample(resample_dist[[i]]$correlation, size = j), sample(subset(df_death_comp, source == "Structural_proteins")$correlation, size = j))$p.value,
-      ks.test(sample(resample_dist[[i]]$correlation, size = j), sample(subset(df_death_comp, source == "All_proteins")$correlation, size = j))$p.value
-    )
-  })) %>% data.frame(., samp_size = j)
-}))
-
-
-head(wilcox_iters)
-colnames(wilcox_iters)<-c("structural","All","sample_size")
-
-wilcox_iters %>%
-  reshape2::melt(id.vars = "sample_size") %>%
-  slice(which(value > .05)) %>%
-  pull(variable) %>%
-  table()
-
-
-ggplot(aes(x=factor(sample_size),y=value,fill=variable))
 
 density_overlay <- df %>% ggplot(aes(x=correlation, group = factor(iter))) +
   geom_density(colour = alpha("grey", .25)) +

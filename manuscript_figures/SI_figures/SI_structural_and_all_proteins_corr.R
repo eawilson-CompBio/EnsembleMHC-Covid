@@ -1,5 +1,6 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggthemes)
 library(ggpubr)
 library(ggplot2)
@@ -169,6 +170,7 @@ death_threshold_specific_corr <- function(death_threshold, MIN_countries) {
   # melt_df_pre
   # return matrix
   melted_df
+  
 }
 
 # load population data
@@ -313,7 +315,6 @@ norm_df_Death$source[which(norm_df_Death$source == "All_proteins")] <- "entire S
 norm_df_Death$source <- as.factor(norm_df_Death$source)
 sig <- subset(norm_df_Death, sig == 1)
 
-# table(norm_df_Death$thes[which(norm_df_Death$source=="Structural Proteins")])[2]/sum(table(norm_df_Death$thes[which(norm_df_Death$source=="Structural Proteins")]))
 
 death_plot <- ggplot(norm_df_Death, aes(days, correlation, group = confirmed)) +
   geom_line(aes(color = confirmed)) +
@@ -358,4 +359,5 @@ plot <- ggplot(df, aes(x = variable, y = value)) +
 
 garg <- ggarrange(death_plot, plot, widths = c(.66, .33))
 
-ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_both_strucutral_n_full_prot.pdf"), garg, width = 14, height = 10.667)
+garg
+#ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_both_strucutral_n_full_prot.pdf"), garg, width = 14, height = 10.667)

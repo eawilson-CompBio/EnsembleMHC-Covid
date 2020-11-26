@@ -1,11 +1,18 @@
-REVISION_DIRECTORY <- "~/Covid-19/EnsembleMHC-Covid19/revision_requests/"
-setwd(REVISION_DIRECTORY)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(stringr)
 library(dplyr)
 library(parallel)
 library(ggplot2)
+library(data.table)
+library(RColorBrewer)
+library(ggthemr)
 
-# functions --------------------------------------------------------------
+# functions ---------------------------------------------------------------
+
+min_norm <- function(x) {
+  (max(x) - x) / (max(x) - min(x))
+}
 
 eval_metrics <- function(ref_peps, target_peps) {
   hits <- sum(sapply(unique(ref_peps$MHC), function(i) {
@@ -21,40 +28,28 @@ eval_metrics <- function(ref_peps, target_peps) {
   data.frame(precision, recall, F1)
 }
 
-min_norm <- function(x) {
-  (max(x) - x) / (max(x) - min(x))
-}
 
-# check for the peptides
-# you will need to download this from iedb
-x <- data.table::fread(paste0(REVISION_DIRECTORY,"revision_datasets/tcell_full_v3.csv")) %>% data.frame()
-x <- x[, c(12, 16, 106, 125)]
-colnames(x) <- c("peptide", "protein", "qualitative measure", "MHC")
+netCTL <- fread(paste0(viral_peptide_dir,"/all_out_netCTL_trimmed.txt"),header = F,sep = " ")
+netMHCcons <- fread(paste0(viral_peptide_dir,"/netMHCcons_all_out.txt"),header = F,sep = " ")
+colnames(netCTL) <-c("protein","HLA","peptide","affinity")
+colnames(netMHCcons) <-c("HLA","peptide","affinity")
+netCTL$HLA<-str_remove_all(netCTL$HLA,"HLA-|\\*")
+netMHCcons$HLA<-str_remove_all(netMHCcons$HLA,"HLA-|\\*")
 
-load("revision_datasets/52_HLA_list.R")
+select_peptides<-read.csv(paste0(viral_peptide_dir,"/immunogenic_viral_peptides.csv"))
 
-# read in the viral peptides 
-
-peptides <- data.table::fread("revision_datasets/all_viral_peptides.csv")
-
-select_peptides <- x %>%
-  slice(which(peptide %in% peptides$peptide)) %>%
-  slice(which(`qualitative measure` != "Negative")) %>%
-  slice(str_which(MHC, pattern = "HLA-[A-C]\\*[0-9]+\\:[0-9]+")) %>%
-  mutate(MHC = str_remove_all(MHC, "HLA-|\\*")) %>%
-  slice(which(MHC %in% sel_HLA)) %>%
-  select(peptide, protein, MHC) %>%
-  unique()
-
-
-viral_pred_peptides <- do.call(rbind, mclapply(list.files("revision_datasets/Viral_peptide_benchmarking/agave_transfers/", full.names = T), function(i) {
+viral_pred_peptides <- do.call(rbind, mclapply(list.files(paste0(viral_peptide_dir), pattern = "_scored_peptides.csv", full.names = T), function(i) {
   data.table::fread(i)
-}, mc.cores = 10)) %>% data.frame()
+}, mc.cores = 10)) %>%
+  data.frame() %>%
+  mutate(pickpocket_affinity = 50000^(1 - pickpocket_affinity))
 
 viral_pred_peptides$HLA <- str_remove_all(viral_pred_peptides$HLA, "HLA-|\\*")
-load("revision_datasets/P_sum_median_1000_boot.R")
+load(paste0(data_path, "P_sum_median_1000_boot.R"))
 
-# only look at peptides that there is HLA data
+
+# only look at peptides that there is some HLA data
+
 sel_viral_HLA <- unique(select_peptides$MHC)
 
 pep_probs <- lapply(sel_viral_HLA, function(w) {
@@ -96,21 +91,19 @@ pep_probs <- lapply(sel_viral_HLA, function(w) {
 # bind all the pep_prob list generated in the previous step
 all_counts <- do.call(rbind, pep_probs)
 
+prob_threshold <- .05
 
-viral_pred_peptides <- do.call(rbind, mclapply(list.files("Viral_peptide_benchmarking/agave_transfers/", full.names = T), function(i) {
-  data.table::fread(i)
-}, mc.cores = 10)) %>%
-  data.frame() %>%
-  mutate(pickpocket_affinity = 50000^(1 - pickpocket_affinity))
+# Summarize by allele and filter for peptides that are less than or equal to 5%
+# return a count of
+pass_filter <- all_counts %>%
+  slice(which(prob <= prob_threshold))
 
 
-viral_pred_peptides$HLA <- str_remove_all(viral_pred_peptides$HLA, "HLA-|\\*")
 
-# get algorithm names 
+
 BA_algos <- colnames(viral_pred_peptides)[c(7)]
 percentile_algos <- colnames(viral_pred_peptides)[c(2:3, 5:6, 12)]
 mhcflurry_pres_algo <- "mhcflurry_presentation_score"
-
 
 collected_low_high <- do.call(rbind, mclapply(seq(25, nrow(select_peptides), 10), function(num_peps) {
   low_to_high_algos <- do.call(rbind, lapply(c(BA_algos, percentile_algos), function(i) {
@@ -123,30 +116,53 @@ collected_low_high <- do.call(rbind, mclapply(seq(25, nrow(select_peptides), 10)
 collected_low_high_mhcflurry <- do.call(rbind, mclapply(seq(25, nrow(select_peptides), 10), function(num_peps) {
   target <- viral_pred_peptides[, c("peptide", "HLA", "mhcflurry_presentation_score")]
   target <- target[order(target$mhcflurry_presentation_score, decreasing = T), ][1:num_peps, ]
-  mhcflurry_top_100 <- eval_metrics(ref_peps = select_peptides, target_peps = target) %>% data.frame(., algo = "mhcflurry_presentation_score", num_peps = num_peps)
+  mhcflurry_top <- eval_metrics(ref_peps = select_peptides, target_peps = target) %>% data.frame(., algo = "mhcflurry_presentation_score", num_peps = num_peps)
 }, mc.cores = 10))
 
 collected_ensemble <- do.call(rbind, mclapply(seq(25, nrow(select_peptides), 10), function(num_peps) {
   target <- all_counts %>%
     arrange(prob) %>%
     slice(1:num_peps)
-  Ensemble_top_100 <- eval_metrics(ref_peps = select_peptides, target_peps = target) %>% data.frame(., algo = "EnsembleMHC", num_peps = num_peps)
+  Ensemble_top <- eval_metrics(ref_peps = select_peptides, target_peps = target) %>% data.frame(., algo = "EnsembleMHC", num_peps = num_peps)
 }, mc.cores = 10))
 
 
-df_top_pep <- rbind(collected_low_high, collected_low_high_mhcflurry, collected_ensemble)
+
+collected_netCTL <- do.call(rbind, mclapply(seq(25, nrow(select_peptides), 10), function(num_peps) {
+   target <- netCTL[, c("peptide", "HLA","affinity")]
+   target <- target[order(target$affinity), ][1:num_peps, ]
+   eval_metrics(ref_peps = select_peptides, target_peps = target) %>% data.frame(., algo = "netCTLpan", num_peps = num_peps)
+
+}, mc.cores = 10))
+
+collected_netMHCcons <- do.call(rbind, mclapply(seq(25, nrow(select_peptides), 10), function(num_peps) {
+  target <- netMHCcons[, c("peptide", "HLA","affinity")]
+  target <- target[order(target$affinity), ][1:num_peps, ]
+  eval_metrics(ref_peps = select_peptides, target_peps = target) %>% data.frame(., algo = "netMHCcons", num_peps = num_peps)
+  
+}, mc.cores = 10))
 
 
-ggthemr::ggthemr("dust")
+df_top_pep <- rbind(collected_low_high, 
+                    collected_low_high_mhcflurry, 
+                    collected_ensemble, 
+                    collected_netCTL,
+                    collected_netMHCcons)
+
+
+ggthemr("fresh")
 df_top_pep %>%
   reshape2::melt(id.vars = c("algo", "num_peps")) %>%
   slice(which(variable == "precision")) %>%
   ggplot(aes(x = num_peps, y = as.numeric(value), color = algo)) +
   geom_line() +
+  scale_color_manual(values = brewer.pal(10, "Paired")) +
   theme(
     legend.position = "top",
-    legend.title = element_blank() 
+    legend.title = element_blank()
   ) +
-  guides(color = guide_legend(override.aes = list(size = 7))) + ylab("precision")+xlab("number of peptides (ranked by affinity)")
+  guides(color = guide_legend(override.aes = list(size = 7))) +
+  ylab("precision") +
+  xlab("number of peptides (ranked by affinity)")
 
-df_top_pep %>% slice(which(algo=="EnsembleMHC")) %>% summarise(median(precision))
+

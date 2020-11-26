@@ -1,22 +1,15 @@
-# path to EnsembleMHC directory
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-# Path to datasets
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-# tumor dataset path
-tumor_data <- "~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/tumor_predictions/"
-library(ggthemes)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
+dirname(sys.frame(1)$ofile)
 library(ggpubr)
 library(ggplot2)
 library(parallel)
 library(data.table)
 library(stringr)
-library(GGally)
 library(wesanderson)
-library(latex2exp)
-library(ggridges)
 library(reshape2)
 library(patchwork)
-library(data.table)
 library(dplyr)
 
 min_norm <- function(x) {
@@ -39,16 +32,16 @@ F1 <- function(x, num_of_pos) {
 }
 
 
-# set algorithms vector
+# set algorithm name vector
 algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "MixMHCpred", "netMHC_affinity", "netMHCpan_EL_affinity", "netstab_affinity", "pickpocket_affinity")
 
-# load the P_sum matrix. This is the stored algorithm and allele specific score and FDR
+# load the parameterization summary matrix. This is the stored algorithm and allele specific score and FDR
 load(paste0(data_path, "P_sum_median_1000_boot.R"))
 
 # read in the coronavirus predictions
 files <- list.files(path = tumor_data, pattern = "csv", full.names = T)
 
-# calcualte percentile score mhcflurry presentation
+# calculate percentile score mhcflurry presentation
 xx <- fread(list.files(tumor_data, pattern = "pred.out", full.names = T))
 
 # clean up allele names
@@ -68,30 +61,32 @@ mhcflurry_thres$`2` <- as.numeric(as.character(mhcflurry_thres$`2`))
 mhcflurry_thres$`0.5` <- as.numeric(as.character(mhcflurry_thres$`0.5`))
 ######
 
-# perfrom calculations for all samples
+# perform calculations for all samples
 all_out <- do.call(rbind, lapply(files, function(f) {
   print(f)
   # read in the cell line data
   cell_line_data <- fread(f)
   cell_line_data$HLA <- str_remove(cell_line_data$HLA, "HLA-")
 
+  # get top number of MS-observed peptides 
   true_counts <- cell_line_data %>%
     slice(-which(duplicated(peptide))) %>%
     pull(ident) %>%
     table()
   pos <- true_counts["target"]
+  
   # calculate peptide probabilities
   # start by iterating through every unique HLA
   pep_probs <- lapply(unique(cell_line_data$HLA), function(w) {
-    # create a tmp variable with that consists of the corona virus predictions for one allele
+    # create a tmp variable consisting of the corona virus predictions for one allele
     tmp <- cell_line_data %>%
       dplyr::slice(which(cell_line_data$HLA == w)) %>%
       data.frame()
     # normalize the scores for the presentation score and pickpocket
-    # both of these scores are not percentiles and the thresholds were bsaed on the normalized scores
+    # both of these scores are not percentiles and the thresholds were based on the normalized scores
     tmp$mhcflurry_presentation_score <- min_norm(tmp$mhcflurry_presentation_score)
     tmp$pickpocket_affinity <- min_norm(tmp$pickpocket_affinity)
-    # coverent the gene name into a factor
+
     # print current HLA being processed
     print(w)
     # create the prob list which is the selection of peptides that fall within the score filter for one algorithm
@@ -99,14 +94,14 @@ all_out <- do.call(rbind, lapply(files, function(f) {
     prob_list <- lapply(colnames(tmp)[colnames(tmp) %in% unique(P_sum$algo)], function(q) {
       # Originally, the algorithms were assigned PPVs. These PPVs are converted to FDR through the relation PPV = 1 - FDR
       neg <- 1 - P_sum$PPV[which(P_sum$HLA == str_remove(w, pattern = "\\*") & P_sum$algo == q)]
-      # the score threshold required for that algorithm at the HLA is recovered from P_sum matrix
+      # the score threshold required for that algorithm at that alelle is recovered from P_sum matrix
       thres <- P_sum$value[which(P_sum$HLA == str_remove(w, pattern = "\\*") & P_sum$algo == q)]
       # select all peptides that fall within the scoring threshold for that algorithm at that allele
       peptides <- tmp$peptide[which(tmp[, q] <= thres)]
-      # return a data frame consisting of selected peptides, teh algorithm FDR, and algorithm name
+      # return a data frame consisting of selected peptides, the algorithm FDR, and algorithm name
       data.frame(peptide = peptides, prob = neg, algo = q)
     })
-    # combine all of the prob_lists in one dataframe, calculate the products of the FDRs associatied with detecting algorithms
+    # combine all of the prob_lists in one dataframe, calculate the products of the FDRs associatied with the detecting algorithms
     # merge with information regarding the gene and HLA
     prob_combo <- do.call(rbind, prob_list) %>%
       data.frame() %>%
@@ -115,7 +110,7 @@ all_out <- do.call(rbind, lapply(files, function(f) {
       merge(tmp[, c("peptide", "HLA", "ident")])
   })
 
-  # bind all the pep_prob list generated in the previous step
+  # bind all elements of the pep_prob list generated in the previous step
   all_counts <- do.call(rbind, pep_probs)
 
   # make vector of all unique alleles
@@ -137,6 +132,7 @@ all_out <- do.call(rbind, lapply(files, function(f) {
     })
     data.frame(algo = colnames(score), F1 = as.numeric(score["f", ]), PPV = as.numeric(score["per", ]), recall = as.numeric(score["rec", ]), threshold = thres)
   }))
+  #give threshold qualitative names
   F1_out$qual <- "high"
   F1_out$qual[which(F1_out$threshold == .5)] <- "low"
 
@@ -212,7 +208,7 @@ all_out$algo <- as.character(all_out$algo)
 all_out$qual[which(all_out$qual == "low")] <- "restrictive"
 all_out$qual[which(all_out$qual == "high")] <- "permissive"
 
-# make the algorithms names more visually appealing
+# format algorithm names
 all_out$algo[which(all_out$algo == "pickpocket_affinity")] <- "PickPocket"
 all_out$algo[which(all_out$algo == "netstab_affinity")] <- "netMHCstabpan"
 all_out$algo[which(all_out$algo == "netMHCpan_EL_affinity")] <- "netMHCpan-4.0-EL"
@@ -220,7 +216,7 @@ all_out$algo[which(all_out$algo == "netMHC_affinity")] <- "netMHC-4.0"
 all_out$algo[which(all_out$algo == "mhcflurry_affinity_percentile")] <- "MHCflurry-affinity"
 all_out$algo[which(all_out$algo == "mhcflurry_presentation_score")] <- "MHCflurry-presentation"
 
-# make the cell line names more visually appealing
+# format tumor data names
 all_out$cell_line[which(all_out$cell_line == "CLL_DFCI-5283_2018")] <- "CLL C"
 all_out$cell_line[which(all_out$cell_line == "CLL_DFCI-5328_20180512")] <- "CLL B"
 all_out$cell_line[which(all_out$cell_line == "GBM_H4198_BT187")] <- "GBM 9"
@@ -233,7 +229,7 @@ all_out$cell_line[which(all_out$cell_line == "MEL_13240-015")] <- "MEL 15"
 all_out$cell_line[which(all_out$cell_line == "OV_CP-594_v1_20161007")] <- "OV 1"
 
 #----------------------------------------
-# the rest is for generating plots
+# generate plots
 #----------------------------------------
 
 
@@ -288,4 +284,5 @@ garg <- p_b_bar + {
   hp + bp + plot_layout(widths = c(.7, .3))
 }
 
-ggsave(garg, filename = paste0(Ensemble_PATH, "/plots/main_figures/Figure_1.pdf"))
+garg
+

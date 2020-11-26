@@ -1,5 +1,4 @@
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19/"
-dataset_path <- paste0(Ensemble_PATH, "/datasets/")
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(ggpubr)
 library(ggplot2)
 library(dplyr)
@@ -9,7 +8,7 @@ library(patchwork)
 algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "MixMHCpred", "netMHC_affinity", "netMHCpan_EL_affinity", "netstab_affinity", "pickpocket_affinity")
 
 
-all_proteins <- fread(paste0(dataset_path, "all_peptides_prefilter.csv"))
+all_proteins <- fread(paste0(data_path, "all_peptides_prefilter.csv"))
 p1 <- all_proteins %>% ggplot(aes(x = prob)) +
   geom_density() +
   geom_vline(xintercept = .05, color = "red") +
@@ -43,5 +42,5 @@ p3 <- data.frame(len = as.numeric(names(all_tab)), count = as.numeric(all_tab) /
 garg <- p1 + {
   p2 / p3
 }
-
-ggsave(garg, filename = paste0(Ensemble_PATH, "plots/SI_figures/SI_peplen_prod_dist.pdf"), width = 12, height = 8)
+garg
+#ggsave(garg, filename = paste0(Ensemble_PATH, "plots/SI_figures/SI_peplen_prod_dist.pdf"), width = 12, height = 8)

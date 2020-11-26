@@ -1,6 +1,5 @@
-## set path to ensembleMHC-Covid directory
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-dataset_path <- paste0(Ensemble_PATH, "/datasets")
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(ggplot2)
 library(dplyr)
 library(parallel)
@@ -11,8 +10,8 @@ library(patchwork)
 # note: Because the distribution is sampled, it will not directly resemble the plot in the manuscript.
 # However, it will still demonstrate the main point of these plots
 #-----------------------------------------------------------------------------------------------------
-df_all_w_std <- read.csv(paste0(dataset_path, "/identified_peptides_all_proteins_summarise_HLA_protein_counts.csv"))
-df_struct_w_std <- read.csv(paste0(dataset_path, "/identified_peptides_all_structural_proteins_only_summarise_HLA_protein_counts.csv"))
+df_all_w_std <- read.csv(paste0(data_path, "/identified_peptides_all_proteins_summarise_HLA_protein_counts.csv"))
+df_struct_w_std <- read.csv(paste0(data_path, "/identified_peptides_all_structural_proteins_only_summarise_HLA_protein_counts.csv"))
 all_sample <- round(rnorm(n = 52, mean = 16, sd = 1))
 ks.test(all_sample, df_all_w_std$total_count_all_proteins)
 

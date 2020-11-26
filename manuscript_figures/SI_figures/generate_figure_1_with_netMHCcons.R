@@ -1,25 +1,16 @@
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/"
-REVISON_DIR<-"~/Covid-19/EnsembleMHC-Covid19/revision_requests/"
-pdf_dir <- "~/Covid-19/EnsembleMHC-Covid19/revision_requests/revision_figures/pdf/"
-setwd(REVISON_DIR)
-library(ggthemes)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggpubr)
 library(ggplot2)
 library(parallel)
 library(data.table)
 library(stringr)
-library(GGally)
 library(wesanderson)
-library(latex2exp)
-library(ggridges)
 library(reshape2)
 library(patchwork)
-library(data.table)
 library(dplyr)
 
-
-pt2in <- function(x) {x*0.0138889}
 
 min_norm <- function(x) {
   (max(x) - x) / (max(x) - min(x))
@@ -50,10 +41,10 @@ algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "Mix
 load(paste0(data_path, "P_sum_median_1000_boot.R"))
 
 # read in the coronavirus predictions
-files <- list.files(path = paste0(data_path, "tumor_predictions/"), pattern = "csv", full.names = T)
+files <- list.files(path = tumor_data, pattern = "csv", full.names = T)
 
 # calcualte percentile score mhcflurry presentation
-xx <- fread(list.files(paste0(data_path, "tumor_predictions/"), pattern = "pred.out", full.names = T))
+xx <- fread(list.files(tumor_data, pattern = "pred.out", full.names = T))
 
 # clean up allele names
 xx$HLA <- str_remove(xx$HLA, "HLA-")
@@ -239,7 +230,7 @@ all_out$cell_line[which(all_out$cell_line == "OV_CP-594_v1_20161007")] <- "OV 1"
 
 # add netMHCons data ------------------------------------------------------
 
-files <- list.files(path = "revision_datasets/consenus_algo/transfer_file/", full.names = T)
+files <- list.files(path = netConsCell, full.names = T)
 cell_line_names <- c("CLL C","CLL B","GBM 9","GBM 11","GBM 7","MEL 1","MEL 2","MEL 3","MEL 15","OV 1")
 df <- do.call(rbind,lapply(1:length(files), function(i) {
   fread(files[i]) %>% select(HLA=V1,peptide=V2,affinity=V3,ident=ident) %>% mutate(cell_line=cell_line_names[i])
@@ -275,10 +266,8 @@ colnames(all_cell_lines_netCons)[c(2,5,6)]<-c("PPV","threshold","qual")
 
 all_algorithms <- rbind(all_out,all_cell_lines_netCons)
 
-#----------------------------------------
-# the rest is for generating plots
-#----------------------------------------
 
+# generate plots ----------------------------------------------------------
 
 all_algorithms$combo_name <- paste(all_algorithms$algo, all_algorithms$qual, sep = "_")
 lev <- all_algorithms$combo_name[which(all_algorithms$cell_line == "CLL C")]
@@ -333,5 +322,7 @@ garg <- p_b_bar + {
   hp + bp + plot_layout(widths = c(.7, .3))
 }
 
-ggsave(garg,filename = paste0(pdf_dir,"cell_line_data_with_netMHCcons.pdf"),width = pt2in(1028),height = pt2in(768/2))
+garg
+
+#ggsave(garg,filename = paste0(pdf_dir,"cell_line_data_with_netMHCcons.pdf"),width = pt2in(1028),height = pt2in(768/2))
 

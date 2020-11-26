@@ -1,13 +1,11 @@
-# path to EnsembleMHC
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-# path to EnsembleMHC data
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-library(ggthemes)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggpubr)
 library(ggplot2)
 library(data.table)
-library(stringr)
 library(latex2exp)
+library(stringr)
 library(lubridate)
 library(tidyr)
 library(viridis)
@@ -268,7 +266,7 @@ allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, function(w) 
 
 # filter for number of select alleles
 allele_freq_list <- allele_freq_list[which(sapply(allele_freq_list, nrow) / 52 > .95)]
-# get coroan virus data that correspondes to the selected alleles
+# get corona virus data that correspondes to the selected alleles
 CoV_data_sel_countries <- all_data_clean[which(all_data_clean$Country.Region %in% names(allele_freq_list)), ]
 
 
@@ -280,9 +278,6 @@ countryEMPscore$country <- row.names(countryEMPscore)
 
 # fix the column name so you can merge later
 colnames(CoV_data_sel_countries)[1] <- "country"
-
-
-
 
 # make dataframe of 2020 populations by country
 select_population <- pop %>% select(name, "2020")
@@ -324,14 +319,6 @@ norm_df_Death$source <- as.factor(norm_df_Death$source)
 sig <- subset(norm_df_Death, sig == 1)
 
 
-# calc diffrences ---------------------------------------------------------
-
-sum(df_Death$p_value <= .05) / (2290 * 2)
-sum(df_Death$p_value_c <= .05) / (2290 * 2)
-table(df_Death$source, df_Death$p_value <= .05) / 2290
-table(df_Death$source, df_Death$p_value_c <= .05) / 2290
-
-
 death_plot <- ggplot(norm_df_Death, aes(days, correlation, group = confirmed)) +
   geom_line(aes(color = confirmed)) +
   scale_color_viridis() +
@@ -362,7 +349,6 @@ cor_set_and_p_val_for_corr_of_rank_scores <- t(sapply(1:22, function(w) {
 })) %>% data.frame()
 
 cor_set_and_p_val_for_corr_of_rank_scores$pvalue <- round(p.adjust(cor_set_and_p_val_for_corr_of_rank_scores$pvalue, "fdr"), 3)
-cor_set_and_p_val_for_corr_of_rank_scores[c(1, 6, 12, 17, 22), ]
 
 day_point_plots <- lapply(1:5, function(w) {
   day <- c(1, 6, 12, 17, 22)[w]
@@ -408,7 +394,7 @@ p_values_for_boxes <- sapply(1:22, function(day) {
   # calculate statisitcal significance of difference
   wilcox.test(dd$death_per_pop[which(dd$group == "upper half")], dd$death_per_pop[which(dd$group == "lower half")])$p.value
 })
-round(p.adjust(p_values_for_boxes, method = "fdr")[c(1, 6, 12, 17, 22)], 4)
+
 # create box plots figure 3C
 day_point_boxes <- lapply(c(1, 6, 12, 17, 22), function(day) {
   # get day specific data for the selected daya
@@ -434,3 +420,7 @@ day_point_boxes <- lapply(c(1, 6, 12, 17, 22), function(day) {
 
 boxes <- do.call(ggarrange, c(day_point_boxes, list(nrow = 1)))
 # ggsave(boxes, filename = paste0(Ensemble_PATH, "/plots/main_figures/Figure_3C.pdf"), width = 14.22, height = 2.65)
+
+death_plot
+corrs/boxes
+

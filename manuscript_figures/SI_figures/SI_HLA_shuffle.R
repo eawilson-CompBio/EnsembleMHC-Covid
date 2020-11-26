@@ -1,5 +1,5 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(dplyr)
 library(data.table)
 library(stringr)
@@ -145,7 +145,7 @@ corona_data <- fread(paste0(data_path, "predicted_corona_peptides.csv"))
 # start by iterating through every unique HLA
 pep_probs <- lapply(unique(corona_data$HLA), function(w) {
   # create a tmp variable with that consists of the corona virus predictions for one allele
-  tmp <- corona_data %>% dplyr::slice(which(corona_data$HLA == w))
+  tmp <- corona_data %>% dplyr::slice(which(corona_data$HLA == w)) %>% data.frame()
   # normalize the scores for the presentation score and pickpocket
   # both of these scores are not percentiles and the thresholds were bsaed on the normalized scores
   tmp$mhcflurry_presentation_score <- min_norm(tmp$mhcflurry_presentation_score)

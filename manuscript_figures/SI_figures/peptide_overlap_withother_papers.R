@@ -1,7 +1,6 @@
-PATH_TO_VALIDATION_PEPTIDE_SETS="~/Covid-19/EnsembleMHC-Covid19/revision_requests/revision_datasets/validated_peptides/"
-PATH_TO_WILSON_PEPTIDES="~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/all_peptides_prefilter.csv"
-ALL_PEPTIDES_PATH <- "~/Covid-19/EnsembleMHC-Covid19/datasets/predicted_corona_peptides.csv"
-setwd(PATH_TO_VALIDATION_PEPTIDE_SETS)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(patchwork)
 library(data.table)
 library(pracma)
@@ -10,41 +9,37 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
 
-all_corona_peps <- fread(ALL_PEPTIDES_PATH) %>%
+all_corona_peps <- fread(paste0(data_path,"/predicted_corona_peptides.csv")) %>%
   data.frame() %>%
   mutate(pickpocket_affinity = 50000^(1 - pickpocket_affinity)) %>%
   slice(which(gene%in%c("S","N","M","E")))
 
 all_corona_peptides <- unique(all_corona_peps$peptide)
 
-Quadeer <- read.csv("summarized_immunogeic_peptides_Quadeer_et_al.csv") 
+Quadeer <- read.csv(paste0(validation_peps,"/summarized_immunogeic_peptides_Quadeer_et_al.csv")) 
 Quadeer_peptides <- Quadeer$Epitope
 Quadeer_peptides <- Quadeer_peptides[which(Quadeer_peptides%in%all_corona_peptides)]
 
-snyder <- read.csv("immunocode_peptides.csv") 
+snyder <- read.csv(paste0(validation_peps,"/immunocode_peptides.csv")) 
 snyder_peptides <- unlist(lapply(unique(snyder$Amino.Acids),function(s)str_split(s,pattern = ",",simplify = T)))
 snyder_peptides <- snyder_peptides[which(snyder_peptides%in%all_corona_peptides)]
 
 
-ferretti <- read.csv("Ferretti_et_al.csv")
+ferretti <- read.csv(paste0(validation_peps,"/Ferretti_et_al.csv"))
 ferretti_peptides <- ferretti$Full_Peptide
 ferretti_peptides <- ferretti_peptides[which(ferretti_peptides%in%all_corona_peptides)]
 
- # grifoni <- read.csv("grifoni_peptide_pools.csv")
- # grifoni_peptides <- grifoni$Peptide
- # grifoni_peptides <- grifoni_peptides[which(grifoni_peptides%in%all_corona_peptides)]
-
-nelde <- read.csv("nelde_et_al_peptides.csv")
+nelde <- read.csv(paste0(validation_peps,"/nelde_et_al_peptides.csv"))
 nelde <-nelde[-intersect(str_which(nelde$SARS_exp,"^0/"),str_which(nelde$healthy_never_exp,"^0/")),]
 nelde_peptides <- str_remove(nelde$peptide,"\xca")
 nelde_peptides <- nelde_peptides[which(nelde_peptides%in%all_corona_peptides)]
 
 
-#all_peptides <- list(Snyder_et_al=snyder_peptides,Quadeer_et_al=Quadeer_peptides,Grifoni_et_al=grifoni_peptides,Ferretti_et_al=ferretti_peptides,Nelde_et_al=nelde_peptides)
+
 all_peptides <- list(Snyder_et_al=snyder_peptides,Quadeer_et_al=Quadeer_peptides,Ferretti_et_al=ferretti_peptides,Nelde_et_al=nelde_peptides)
 
 
-Wilson_peptides <- read.csv(PATH_TO_WILSON_PEPTIDES) %>%
+Wilson_peptides <- read.csv(paste0(data_path,"/all_peptides_prefilter.csv")) %>%
   slice(which(prob <= .05)) %>%
   slice(which(gene %in% c("S", "N", "M", "E"))) %>%
   pull(peptide) %>%
@@ -57,8 +52,8 @@ peptide_sum <- do.call(rbind, lapply(names(all_peptides), function(x) {
 
 all_valid<-data.frame(table(Wilson_peptides %in% unique(do.call("c", all_peptides))), pep_set = "total validated")
 
-snyder <- read.csv("immunocode_peptides.csv") 
 
+snyder <- read.csv(paste0(validation_peps,"/immunocode_peptides.csv")) 
 snyder_peptides <- unique(snyder$Amino.Acids)[which(sapply(unique(snyder$Amino.Acids), function(s) length(str_split(s, pattern = ",", simplify = T))<2))]
 snyder_peptides <- snyder_peptides[which(snyder_peptides%in%all_corona_peptides)]
 all_peptides <- list(Snyder_et_al=snyder_peptides,Ferretti_et_al=ferretti_peptides,Nelde_et_al=nelde_peptides,Quadeer_peptides)

@@ -1,26 +1,22 @@
-setwd("~/Covid-19/new_mutations/")
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(dplyr)
 library(stringr)
 library(data.table)
 library(parallel)
 library(ggplot2)
-pdf_dir <- "~/Covid-19/EnsembleMHC-Covid19/revision_requests/revision_figures/pdf/"
+library(patchwork)
 # functions ---------------------------------------------------------------
-pt2in <- function(x) {x*0.0138889}
 
 min_norm <- function(x) {
   (max(x) - x) / (max(x) - min(x))
 }
-std <- function(x) {
-  (x - mean(x)) / sd(x)
-}
-
 
 
 # Read in mutation data ---------------------------------------------------
 
-mutations_COVID_ep <- do.call(rbind, lapply(list.files(pattern = "mutation"), function(i) {
-  data.frame(read.csv(i), gene = str_remove(i, "_mutation.csv"))
+mutations_COVID_ep <- do.call(rbind, lapply(list.files(path = mutation_file,pattern = "mutation",full.names = T), function(i) {
+  data.frame(read.csv(i), gene = str_remove(basename(i), "_mutation.csv"))
 }))
 
 # out of 102148 seqs 
@@ -73,21 +69,17 @@ S<-mutations_COVID_ep %>%
 
 
 
-# replacements <- read.csv("replacements.csv") %>% slice(which(genomeRegion %in% c("S", "M", "N", "E")))
-# insertions <- read.csv("insertions.csv") %>% slice(which(genomeRegion %in% c("S", "M", "N", "E")))
-# deletions <- read.csv("deletions.csv") %>% slice(which(genomeRegion %in% c("S", "M", "N", "E")))
-
 
 # map back to predicted peptides ------------------------------------------
 
 
 #read in the positional data for all peptides
-all_pos <- fread("~/Covid-19/EnsembleMHC-Covid19/datasets/all_peptides_with_pos.csv")
+all_pos <- fread(paste0(data_path,"all_peptides_with_pos.csv"))
 
 # make the mutation peptides -----
 
 # get all structural peptides identified by ensembleMHC
-wilson_peptides <- fread("~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/all_peptides_prefilter.csv") %>%
+wilson_peptides <- fread(paste0(data_path,"all_peptides_prefilter.csv")) %>%
   slice(which(gene %in% c("S", "M", "N", "E"))) %>%
   slice(which(prob <= 0.05)) %>% 
   select(peptide,gene) %>%
@@ -144,9 +136,10 @@ all_mutated_peptides$mut_freq <- as.numeric(all_mutated_peptides$mut_freq)
 all_mutated_peptides$mut_pos <- as.numeric(all_mutated_peptides$mut_pos)
 
 for_pred <- all_mutated_peptides %>% select(peptide=mutate_pep,gene) %>% mutate(length=nchar(peptide))
-load("~/Covid-19/EnsembleMHC-Covid19/datasets/52_HLA_list.R")
+load(paste0(data_path,"selected_alleles.R"))
 
 
+# this would write the peptides to file for prediction purposes
 #write data for predictions and use EnsembleMHC 
 # lapply(sel_HLA, function(i) {
 #   write.csv(for_pred, file = paste0("pred_ref/","HLA-", i, "_ready_for_predictions.csv"),row.names = F)
@@ -176,22 +169,27 @@ p2<-grobs_lines[[2]]/grobs[[2]] +plot_layout(heights = c(.9,.1))&theme(plot.marg
 p3<-grobs_lines[[3]]/grobs[[3]] +plot_layout(heights = c(.9,.1))&theme(plot.margin = margin(0,0,0,0))
 p4<-grobs_lines[[4]]/grobs[[4]] +plot_layout(heights = c(.9,.1))&theme(plot.margin = margin(0,0,0,0))
 
-ggsave(p1,filename = paste0(pdf_dir,"Envelope_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
-ggsave(p2,filename = paste0(pdf_dir,"nuc_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
-ggsave(p3,filename = paste0(pdf_dir,"mem_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
-ggsave(p4,filename = paste0(pdf_dir,"spike_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
+
+p1
+p2
+p3
+p4
+# ggsave(p1,filename = paste0(pdf_dir,"Envelope_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
+# ggsave(p2,filename = paste0(pdf_dir,"nuc_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
+# ggsave(p3,filename = paste0(pdf_dir,"mem_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
+# ggsave(p4,filename = paste0(pdf_dir,"spike_protein_mutations.pdf"),width = pt2in(900),height = pt2in(150))
 # analysis of the results from predictions ----------
 
-#read in teh prediction data 
-pred_peptides <- do.call(rbind, lapply(list.files("transfer_dir", full.names = T), function(i) {
+#read in the prediction data 
+pred_peptides <- do.call(rbind, lapply(list.files(paste0(mutation_file,"/predicted_mutant_peptides"), full.names = T), function(i) {
   read.csv(i)
 }))
 
-load("~/Covid-19/EnsembleMHC-Covid19/datasets/P_sum_median_1000_boot.R")
+load(paste0(data_path,"P_sum_median_1000_boot.R"))
 
-wilson_peptides <- fread("~/Covid-19/EnsembleMHC-Covid19/datasets/data_not_transfered/all_peptides_prefilter.csv") %>%
+wilson_peptides <- fread(paste0(data_path,"/all_peptides_prefilter.csv")) %>%
   slice(which(gene %in% c("S", "M", "N", "E"))) %>%
-  slice(which(prob <= 0.05)) %>% 
+  slice(which(prob <= 0.05)) %>%
   select(peptide,gene,HLA) %>%
   unique()
 
@@ -255,9 +253,10 @@ matched_peptides<- all_peptides_with_score[!is.na(prodlim::row.match(all_peptide
 
 # plot the results of the mutation analysis -------------------------------
 p5<-table(matched_peptides$FILTER_PASS) %>%data.frame() %>% ggplot(aes(x=Var1,y=Freq,fill=Var1))+geom_bar(stat="identity")+theme(legend.position = "none")
-ggsave(p5,filename = paste0(pdf_dir,"binding_of_mutant_peptide.pdf"),width = pt2in(300),height = pt2in(150))
+#ggsave(p5,filename = paste0(pdf_dir,"binding_of_mutant_peptide.pdf"),width = pt2in(300),height = pt2in(150))
 p6<- matched_peptides%>% ggplot(aes(mut_freq,fill=FILTER_PASS))+geom_histogram()
-ggsave(p6,filename = paste0(pdf_dir,"freq_of_mutants.pdf"),width = pt2in(600),height = pt2in(150))
-all_peptides_with_score %>% ggplot(aes(mut_freq,fill=FILTER_PASS))+geom_histogram(binwidth = .00001)
+#ggsave(p6,filename = paste0(pdf_dir,"freq_of_mutants.pdf"),width = pt2in(600),height = pt2in(150))
 
+p5
+p6
 

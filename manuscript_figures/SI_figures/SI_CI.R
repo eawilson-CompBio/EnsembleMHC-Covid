@@ -1,5 +1,5 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 
 library(ggthemes)
 library(ggpubr)
@@ -31,36 +31,6 @@ algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "Mix
 # Functions
 
 #
-get_day_data <- function(day, death_threshold, MIN_countries) {
-  # filter at a set number of deaths
-  # set days for time series analysis
-  # add days since it reached that point
-  day_data <- CoV_data_sel_countries %>%
-    slice(which(Deaths >= death_threshold)) %>%
-    group_by(country) %>%
-    mutate(days = as.numeric((today() - day_correction) - mdy(date))) %>%
-    mutate(days = max(days) - days)
-
-
-  # set the threshold of days so you know when to stop iterating once the number of countries decreases below threshold
-  thres <- table(day_data$days)[which(table(day_data$days) >= MIN_countries)]
-  thres <- as.numeric(names(thres)[length(thres)])
-
-  # mere the day data with the population data
-  score_and_death_pop <- day_data %>% merge(select_population)
-
-  # merge EMP scores and calculate deaths per million
-  score_and_death_pop <- score_and_death_pop %>%
-    group_by(country, days) %>%
-    mutate(pop = `2020` / 1000) %>%
-    mutate(death_per_pop = Deaths / pop) %>%
-    merge(countryEMPscore) %>%
-    select(country, death_per_pop, Deaths, days, All.proteins, Structural.proteins) %>%
-    slice(which(Deaths >= death_threshold))
-
-  # return day specific data
-  score_and_death_pop %>% slice(which(days == day))
-}
 
 
 get_stats <- function(death_threshold, MIN_countries) {
@@ -126,8 +96,6 @@ EMP_score <- function(population) {
             pf <- HLA_count$pep_frac[which(HLA_count$HLA == i & HLA_count$source == j)]
             # score is the peptide fraction weighted by the normalized expression of that allele
             score <- (df$pop_freq[which(df$HLA == i)] * pf)
-            # if the co
-            # if(length(score)==0){0}else{score}
           })
         })), 2, sum) / length(df$HLA)
       })
@@ -136,7 +104,7 @@ EMP_score <- function(population) {
   )
 }
 
-
+# The following function was adapted from the citation below
 # spearman CI Jackknife  Euclidean likelihood modified from spearmanCI pacakge
 #' article{de2012jackknife,
 #'   title={Jackknife Euclidean Likelihood-Based Inference for Spearman's Rho},
@@ -173,7 +141,7 @@ spearmanConfInt <- function(x, y, level = 0.95) {
   if (l < -1) {
     l <- -1
   }
-  # due to the use of the bisection method, sometime teh interval needs to be extended slightly in order to find a root
+  # due to the use of the bisection method, sometime the interval needs to be extended slightly in order to find a root
   # the result of this is lower bound correlation of less than -1
   # stack overflow https://stackoverflow.com/questions/38961221/uniroot-solution-in-r
   u <- uniroot(g, interval = c(U, 1), tol = 0.1 * 10^{
@@ -306,7 +274,7 @@ all_stats <- mclapply(1:100, function(death_thres) {
 }, mc.cores = 10)
 all_s <- do.call(rbind, all_stats)
 
-CI_plot <- all_s %>%
+CI_plot_struct <- all_s %>%
   slice(which(prot_group == "structural")) %>%
   ggplot(aes(x = day, y = estimate.rho, color = prot_group)) +
   geom_line(color = "#00ACED") +
@@ -317,9 +285,9 @@ CI_plot <- all_s %>%
   ggtitle("SARS-CoV-2 structural proteins") +
   xlab("days from death threshold")
 
-ggsave(CI_plot, file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_SARS-CoV-2_structural_CI.pdf"), width = 11, height = 11)
+#ggsave(CI_plot, file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_SARS-CoV-2_structural_CI.pdf"), width = 11, height = 11)
 
-CI_plot <- all_s %>%
+CI_plot_full <- all_s %>%
   slice(which(prot_group == "full")) %>%
   ggplot(aes(x = day, y = estimate.rho, color = prot_group)) +
   geom_line(color = "#388659") +
@@ -330,17 +298,9 @@ CI_plot <- all_s %>%
   ggtitle("Full SARS-CoV-2 proteome") +
   xlab("days from death threshold")
 
-ggsave(CI_plot, file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_Full_SARS-CoV-2_CI.pdf"), width = 11, height = 11)
+#ggsave(CI_plot, file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_Full_SARS-CoV-2_CI.pdf"), width = 11, height = 11)
+CI_plot_full
+CI_plot_struct
 
 
-country_count <- all_s %>% ggplot(aes(x = day, y = Countries)) +
-  geom_line() +
-  theme_classic() +
-  facet_wrap(death_threshold ~ .) +
-  xlab("days from death threshold") +
-  ylab("number of countries") +
-  ggtitle("number of countries in each correlation as a function of time")
-
-ggsave(country_count, file = "SI_country_count_by_day.pdf", width = 11, height = 11)
-
-write.csv(all_s, file = "SI_table_2_cor_data.csv", row.names = F)
+#write.csv(all_s, file = "SI_table_2_cor_data.csv", row.names = F)

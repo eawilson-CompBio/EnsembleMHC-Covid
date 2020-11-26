@@ -1,8 +1,7 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(dplyr)
 library(data.table)
-library(Biostrings)
 library(stringr)
 min_norm <- function(x) {
   (max(x) - x) / (max(x) - min(x))
@@ -67,7 +66,4 @@ sel_up <- upset(all_prob,
   order.by = "freq", empty.intersections = "on"
 )
 
-
-pdf(file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_upset_plot_select_peptides.pdf"), height = 8, width = 10)
 sel_up
-dev.off()

@@ -1,5 +1,4 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-plot_path <- "/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/plots/"
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(ggthemes)
 library(ggpubr)
 library(ggplot2)
@@ -22,17 +21,16 @@ library(reshape2)
 # set the selected algorithms that were available for each prediction
 algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "MixMHCpred", "netMHC_affinity", "netMHCpan_EL_affinity", "netstab_affinity", "pickpocket_affinity")
 # read in the benchmariking files
-rf_files <- list.files(path = paste0(data_path, "allele_benchmark_datasets/"), pattern = "csv", full.names = T)
+benchmark_files <- list.files(path = paste0(data_path, "allele_benchmark_datasets/"), pattern = "csv", full.names = T)
 # load in vetor with all selected alleles
 load(paste0(data_path, "selected_alleles.R"))
 # load in the P_sum matrix with median value for PPV and score threshold
 load(paste0(data_path, "P_sum_median_1000_boot.R"))
 
 # get path to all of the benchmarking files
-rf_files <- rf_files[which(str_extract(rf_files, "[A-C][0-9]+\\:[0-9]+") %in% sel_alleles)]
 
 # create correlation plot
-all <- mclapply(rf_files, function(file) {
+all <- mclapply(benchmark_files, function(file) {
   # read in benchmark with index file
   mat <- read.csv(file, stringsAsFactors = F)
   # make sure there are no duplicated rrrow
@@ -51,7 +49,7 @@ all_sel <- do.call(rbind, all[which(sapply(all, ncol) == 20)])
 all_sel <- all_sel %>%
   arrange(peptide) %>%
   arrange(HLA)
-# calcualte score correlation
+# calculate score correlation
 cor_all <- cor(all_sel[, which(colnames(all_sel) %in% algos)])
 
 # rename the algorithm to pretty names
@@ -120,4 +118,5 @@ SI_fig <- ggarrange(
 )
 
 
-ggsave(SI_fig, filename = paste0(plot_path, "main_figures/SI_figure_EnsembleMHC_benchmarking.pdf"), height = 6, width = 15)
+SI_fig
+#ggsave(SI_fig, filename = paste0(plot_path, "main_figures/SI_figure_EnsembleMHC_benchmarking.pdf"), height = 6, width = 15)

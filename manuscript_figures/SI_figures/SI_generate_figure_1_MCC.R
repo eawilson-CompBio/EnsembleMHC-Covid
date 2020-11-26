@@ -1,18 +1,14 @@
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-library(ggthemes)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggpubr)
 library(ggplot2)
 library(parallel)
 library(data.table)
 library(stringr)
-library(GGally)
 library(wesanderson)
-library(latex2exp)
-library(ggridges)
 library(reshape2)
 library(patchwork)
-library(data.table)
 library(dplyr)
 
 min_norm <- function(x) {
@@ -42,10 +38,10 @@ algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "Mix
 load(paste0(data_path, "P_sum_median_1000_boot.R"))
 
 # read in the coronavirus predictions
-files <- list.files(path = paste0(data_path, "tumor_predictions/"), pattern = "csv", full.names = T)
+files <- list.files(path = tumor_data, pattern = "csv", full.names = T)
 
 # calcualte percentile score mhcflurry presentation
-xx <- fread(list.files(paste0(data_path, "tumor_predictions/"), pattern = "pred.out", full.names = T))
+xx <- fread(list.files(tumor_data, pattern = "pred.out", full.names = T))
 
 # clean up allele names
 xx$HLA <- str_remove(xx$HLA, "HLA-")
@@ -112,52 +108,51 @@ all_out <- do.call(rbind, lapply(files, function(f) {
 
   # bind all the pep_prob list generated in the previous step
   all_counts <- do.call(rbind, pep_probs)
-
+  rows<-prodlim::row.match(all_counts[,c("peptide","HLA","ident")]%>%data.frame(),cell_line_data[,c("peptide","HLA","ident")]%>%data.frame())
+  missing <- cell_line_data[-c(rows),c("peptide","HLA","ident")]
+  missing$prob<-1
+  all_counts<-rbind(all_counts,missing)
   # make vector of all unique alleles
   sel_alleles <- unique(all_counts$HLA)
 
 
   # calclate PPV, recall, and F1 for algorithms with percentile score
   algo_percentile <- c("mhcflurry_affinity_percentile", "MixMHCpred", "netMHC_affinity", "netMHCpan_EL_affinity", "netstab_affinity")
-  F1_out <- do.call(rbind, lapply(c(.5, 2), function(i) {
+  MCC_out <- do.call(rbind, lapply(c(.5, 2), function(i) {
     thres <- i
-    score <- sapply(algo_percentile, function(w) {
+    score <- t(sapply(algo_percentile, function(w) {
       tmp <- cell_line_data %>% data.frame()
       tmp <- tmp[, c("peptide", "HLA", w, "ident")]
-      tmp <- tmp[which(tmp[, 3] <= thres), ]
-      if (length(unique(tmp$peptide)) != nrow(tmp)) {
-        tmp <- tmp %>% slice(-which(duplicated(peptide)))
-      }
-      c(f = as.numeric(F1(tmp$ident, pos)), per = as.numeric(PPV(tmp$ident)), rec = as.numeric(table(tmp$ident)["target"] / pos))
-    })
-    data.frame(algo = colnames(score), F1 = as.numeric(score["f", ]), PPV = as.numeric(score["per", ]), recall = as.numeric(score["rec", ]), threshold = thres)
+      tmp$pred<-"decoy"
+      tmp$pred[which(tmp[, 3] <= thres)]<-"target"
+      tmp<-tmp%>%arrange(.[[w]])%>%slice(-which(duplicated(peptide)))
+      data.frame(MCC=mltools::mcc(tmp$ident,tmp$pred),algo=w,threshold=i)
+          })) %>% data.frame()
   }))
-  F1_out$qual <- "high"
-  F1_out$qual[which(F1_out$threshold == .5)] <- "low"
+  MCC_out$qual <- "high"
+  MCC_out$qual[which(MCC_out$threshold == .5)] <- "low"
 
   # calculate metrics for pickpocket affinity
   # convert pickpoct to ic 50
   cell_line_data$pickpocket_affinity <- 50000^(1 - cell_line_data$pickpocket_affinity)
   algo_BA <- c("pickpocket_affinity")
-  F1_out_BA <- do.call(rbind, lapply(c(50, 500), function(i) {
+  MCC_out_BA <- do.call(rbind, lapply(c(50, 500), function(i) {
     thres <- i
-    score <- sapply(algo_BA, function(w) {
+    score <- t(sapply(algo_BA, function(w) {
       tmp <- cell_line_data %>% data.frame()
       tmp <- tmp[, c("peptide", "HLA", w, "ident")]
-      tmp <- tmp[which(tmp[, 3] <= thres), ]
-      if (length(unique(tmp$peptide)) != nrow(tmp)) {
-        tmp <- tmp %>% slice(-which(duplicated(peptide)))
-      }
-      c(f = as.numeric(F1(tmp$ident, pos)), per = as.numeric(PPV(tmp$ident)), rec = as.numeric(table(tmp$ident)["target"] / pos))
-    })
-    data.frame(algo = colnames(score), F1 = as.numeric(score["f", ]), PPV = as.numeric(score["per", ]), recall = as.numeric(score["rec", ]), threshold = thres)
-  }))
-  F1_out_BA$qual <- "high"
-  F1_out_BA$qual[which(F1_out_BA$threshold == 50)] <- "low"
+      tmp$pred<-"decoy"
+      tmp$pred[which(tmp[, 3] <= thres)]<-"target"
+      tmp<-tmp%>%arrange(.[[w]])%>%slice(-which(duplicated(peptide)))
+      data.frame(MCC=mltools::mcc(tmp$ident,tmp$pred),algo=w,threshold=i)
+    })) %>% data.frame()
+        }))
+  MCC_out_BA$qual <- "high"
+  MCC_out_BA$qual[which(MCC_out_BA$threshold == 50)] <- "low"
 
 
   # calculate metrics for MHCflurry presentation
-  F1_out_MHC <- do.call(rbind, lapply(c(2, .5), function(i) {
+  MCC_out_MHC <- do.call(rbind, lapply(c(2, .5), function(i) {
     thres <- i
     tmp <- cell_line_data %>% data.frame()
     tmp <- tmp[, c("peptide", "HLA", "mhcflurry_presentation_score", "ident")]
@@ -165,39 +160,37 @@ all_out <- do.call(rbind, lapply(files, function(f) {
     score <- thres[, as.character(i)]
     names(score) <- thres$HLA
 
-    passed_thres <- do.call(rbind, lapply(unique(tmp$HLA), function(i) {
-      tmp %>% slice(which(HLA == i & mhcflurry_presentation_score >= score[i]))
+    tmp$pred<-"decoy"
+    
+    passed_thres <- do.call(rbind, lapply(unique(tmp$HLA), function(j) {
+      tmp$pred[which(tmp$HLA == j & tmp$mhcflurry_presentation_score >= as.numeric(score[j]))] <- "target"
+      tmp
     })) %>%
       arrange(desc(mhcflurry_presentation_score)) %>%
       slice(-which(duplicated(peptide)))
+    data.frame(MCC=mltools::mcc(passed_thres$ident,passed_thres$pred),algo="mhcflurry_presentation_score",threshold=i)
+    
 
-    if (length(unique(passed_thres$peptide)) != nrow(passed_thres)) {
-      passed_thres <- passed_thres %>% slice(-which(duplicated(peptide)))
-    }
-    score <- c(f = as.numeric(F1(passed_thres$ident, pos)), per = as.numeric(PPV(passed_thres$ident)), rec = as.numeric(table(passed_thres$ident)["target"] / pos))
-    data.frame(algo = "mhcflurry_presentation_score", F1 = as.numeric(score["f"]), PPV = as.numeric(score["per"]), recall = as.numeric(score["rec"]), threshold = i)
   }))
-  F1_out_MHC$qual <- "high"
-  F1_out_MHC$qual[which(F1_out_MHC$threshold == 0.5)] <- "low"
+  MCC_out_MHC$qual <- "high"
+  MCC_out_MHC$qual[which(MCC_out_MHC$threshold == 0.5)] <- "low"
 
-  F1_ensemble <- do.call(rbind, lapply(c(.5, .05), function(i) {
-    prob_threshold <- i
-    df_all_proteins <- all_counts %>%
-      slice(which(prob <= prob_threshold)) %>%
-      slice(-which(duplicated(peptide)))
-    data.frame(
-      algo = "EnsembleMHC",
-      F1 = as.numeric(F1(df_all_proteins$ident, pos)),
-      PPV = as.numeric(PPV(df_all_proteins$ident)),
-      recall = as.numeric(table(df_all_proteins$ident)["target"] / pos),
-      threshold = prob_threshold
-    )
+  MCC_ensemble <- do.call(rbind, lapply(c(.5, .05), function(i) {
+
+    tmp<-all_counts
+    tmp$pred <- "decoy"
+    tmp$pred[which(tmp$prob<=i)] <- "target"
+    tmp <- tmp %>% arrange(prob) %>% slice(-which(duplicated(peptide)))
+    data.frame(MCC=mltools::mcc(tmp$ident,tmp$pred),algo="EnsembleMHC",threshold=i)
+    
+   
   }))
-  F1_ensemble$qual <- "high"
-  F1_ensemble$qual[which(F1_ensemble$threshold == .05)] <- "low"
+  
+  MCC_ensemble$qual <- "high"
+  MCC_ensemble$qual[which(MCC_ensemble$threshold == .05)] <- "low"
 
 
-  df <- rbind(F1_out, F1_out_BA, F1_out_MHC, F1_ensemble)
+  df <- rbind(MCC_out, MCC_out_BA, MCC_out_MHC, MCC_ensemble)
   df$cell_line <- str_extract(f, "(?<=\\/)(CL|GB|ME|OV).+(?=_combo)")
   df
 }))
@@ -214,7 +207,6 @@ all_out$algo[which(all_out$algo == "netMHCpan_EL_affinity")] <- "netMHCpan-4.0-E
 all_out$algo[which(all_out$algo == "netMHC_affinity")] <- "netMHC-4.0"
 all_out$algo[which(all_out$algo == "mhcflurry_affinity_percentile")] <- "MHCflurry-affinity"
 all_out$algo[which(all_out$algo == "mhcflurry_presentation_score")] <- "MHCflurry-presentation"
-
 # make the cell line names more visually appealing
 all_out$cell_line[which(all_out$cell_line == "CLL_DFCI-5283_2018")] <- "CLL C"
 all_out$cell_line[which(all_out$cell_line == "CLL_DFCI-5328_20180512")] <- "CLL B"
@@ -239,27 +231,11 @@ cols <- wes_palette(name = "Zissou1", type = "continuous")
 lab_col <- c(rep("#663333", 2), rep("#ff6600", 2), rep("#006600", 2), rep("#3399cc", 10))
 all_out$cell_line <- factor(all_out$cell_line, unique(all_out$cell_line)[c(2, 1, 5, 3, 4, 6, 7, 8, 9, 10)])
 
-colnames(all_out)[3] <- "precision"
 
 
-p_b_bar <- all_out %>%
-  dplyr::select(algo, precision, recall, threshold, qual) %>%
-  group_by(algo, qual, threshold) %>%
-  mutate(precision = mean(precision, na.rm = T), recall = mean(recall, na.rm = T)) %>%
-  melt(id.vars = c("algo", "qual", "threshold")) %>%
-  unique() %>%
-  ggplot(aes(x = algo, y = value, fill = variable)) +
-  geom_bar(stat = "identity", position = position_dodge()) +
-  facet_wrap(qual ~ ., ncol = 1) +
-  labs(fill = "metric") +
-  xlab("") +
-  ylab("") +
-  theme_pubclean() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  guides(fill = guide_legend(title.position = "top", title.hjust = .5))
 
-
-hp <- all_out %>% ggplot(aes(y = combo_name, x = cell_line, fill = F1)) +
+all_out$MCC<-unlist(all_out$MCC)
+hp <- all_out %>% ggplot(aes(y = combo_name, x = cell_line, fill = MCC)) +
   geom_tile() +
   theme_classic() +
   scale_fill_gradientn(colours = cols) +
@@ -269,18 +245,17 @@ hp <- all_out %>% ggplot(aes(y = combo_name, x = cell_line, fill = F1)) +
   guides(fill = guide_colorbar(title.position = "top", title.hjust = .5))
 
 bp <- all_out %>%
-  slice(-which(is.na(F1))) %>%
   group_by(combo_name) %>%
-  summarise(F1 = mean(F1)) %>%
-  ggplot(aes(y = combo_name, x = F1)) +
+  summarise(MCC = mean(MCC)) %>%
+  ggplot(aes(y = combo_name, x = MCC)) +
   geom_bar(stat = "identity") +
   theme_pubclean() +
   theme(axis.text.y = element_blank()) +
   ylab("") +
-  xlab("precision")
+  xlab("Average MCC")
 
-garg <- p_b_bar + {
+garg <- 
   hp + bp + plot_layout(widths = c(.7, .3))
-}
 
-ggsave(garg, filename = paste0(Ensemble_PATH, "/plots/main_figures/Figure_1.pdf"))
+garg
+#ggsave(garg, filename = paste0(pdf_dir, "MCC_of_figure_1.pdf"),width = pt2in(1024),height = pt2in(768))

@@ -1,7 +1,6 @@
-# data path and ensembleMHC path
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-library(ggthemes)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggpubr)
 library(ggplot2)
 library(data.table)
@@ -11,7 +10,6 @@ library(dplyr)
 library(parallel)
 library(lubridate)
 library(viridis)
-library(caret)
 library(pwr)
 library(reshape2)
 
@@ -102,109 +100,6 @@ death_threshold_specific_corr_covariate <- function(death_threshold, MIN_countri
     group_by(covar) %>%
     mutate(p_value = p.adjust(p_value, method = "fdr"))
 }
-
-# calculate adjusted R
-# calculate correlation as a function of time
-death_threshold_lm <- function(death_threshold, MIN_countries, method) {
-  # filter at a set number of deaths
-  # set days for time series analysis
-  # add days since it reached that point
-  day_data <- CoV_data_sel_countries %>%
-    slice(which(Deaths >= death_threshold)) %>%
-    group_by(country) %>%
-    mutate(days = as.numeric((today() - day_correction) - mdy(date))) %>%
-    mutate(days = max(days) - days)
-
-
-  # set the threshold of days so you know when to stop iterating once the number of countries decreases below threshold
-  thres <- table(day_data$days)[which(table(day_data$days) >= MIN_countries)]
-  thres <- as.numeric(names(thres)[length(thres)])
-
-  # mere the day data with the population data
-  score_and_death_pop <- day_data %>% merge(select_population)
-
-  # merge EMP scores and calculate deaths per million
-  score_and_death_pop <- score_and_death_pop %>%
-    group_by(country, days) %>%
-    mutate(pop = `2020` / 1000) %>%
-    mutate(death_per_pop = Deaths / pop) %>%
-    merge(countryEMPscore) %>%
-    select(country, death_per_pop, Deaths, days, All.proteins, Structural.proteins) %>%
-    slice(which(Deaths >= death_threshold)) %>%
-    merge(corr_data)
-
-  cor_data <- do.call(rbind, lapply(1:thres, function(i) {
-    # create subset of data at day i
-    tmp <- score_and_death_pop %>% slice(which(days == i))
-    tmp <- tmp %>% select(-All.proteins, -Deaths, -days, -country)
-    tmp <- apply(tmp, 2, rank) %>% data.frame()
-
-    # score<-summary(lm(death_per_pop~(tmp$avg_BMI+tmp$Structural.proteins+tmp$gt_sixityfive+tmp$blood_pressure),tmp))
-    # mod <- lm(death_per_pop~(tmp$avg_BMI+tmp$Structural.proteins+tmp$gt_sixityfive+tmp$blood_pressure+tmp$Cardiovascular_diseases+tmp$Diabetes_mellitus+tmp$perc_expend),tmp)
-    int_cor <- do.call(rbind, lapply(3:ncol(tmp), function(k) {
-      mod1 <- lm(death_per_pop ~ (tmp$Structural.proteins + tmp[, k]), tmp)
-      mod2 <- lm(death_per_pop ~ (tmp[, k]), tmp)
-      cbind(
-        rbind(
-          c(r2 = summary(mod1)$adj.r, p_value = as.numeric(pf(summary(mod1)$fstatistic[1], df1 = summary(mod1)$fstatistic[2], df2 = summary(mod1)$fstatistic[3], lower.tail = F))),
-          c(r2 = summary(mod2)$adj.r, p_value = as.numeric(pf(summary(mod2)$fstatistic[1], df1 = summary(mod2)$fstatistic[2], df2 = summary(mod2)$fstatistic[3], lower.tail = F)))
-        ),
-        c(paste(colnames(tmp)[k], "Structural_proteins", sep = "+"), colnames(tmp)[k])
-      )
-    })) %>%
-      data.frame(stringsAsFactors = F) %>%
-      mutate(day = i, thre = death_threshold)
-    colnames(int_cor) <- c("r2", "p_value", "ident", "day", "threshold")
-    int_cor$r2 <- as.numeric(int_cor$r2)
-    int_cor$p_value <- as.numeric(int_cor$p_value)
-    int_cor
-    # score <- summary(mod)
-    # score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive),tmp))
-    # c(score$adj.r.squared,
-    #   pf(score$fstatistic[1],df1 = score$fstatistic[2],df2 = score$fstatistic[3],lower.tail = FALSE),
-    #   max(VIF(mod))
-    #   )
-  }))
-  cor_data %>%
-    melt(id.vars = c("ident", "day", "threshold")) %>%
-    ggplot(aes(x = day, y = value, color = variable)) +
-    geom_line() +
-    facet_wrap(ident ~ .) +
-    theme_pubclean() +
-    geom_hline(yintercept = 0.05, color = "red")
-  cor_data %>% ggplot(aes(x = day, y = r2)) +
-    geom_line() +
-    facet_wrap(ident ~ .) +
-    geom_point(data = subset(cor_data, p_value <= .05), color = "red") +
-    theme_pubclean()
-  # apply(sapply(1:thres,function(i){
-  #   #create subset of data at day i
-  #   tmp <- score_and_death_pop%>%slice(which(days==i))
-  #   tmp <- tmp %>% select(-All.proteins,-Deaths,-days,-country)
-  #   tmp <- apply(tmp,2,rank)%>%data.frame()
-  #
-  #   #score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive+tmp$blood_pressure),tmp))
-  #   #score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive),tmp))
-  #   #c(score$adj.r.squared,pf(score$fstatistic[1],df1 = score$fstatistic[2],df2 = score$fstatistic[3],lower.tail = FALSE))
-  #   cor(tmp)#[,2]
-  # }),1,median)
-
-
-  do.call(cbind, lapply(1:thres, function(i) {
-    # create subset of data at day i
-    tmp <- score_and_death_pop %>% slice(which(days == i))
-    tmp <- tmp %>% select(-All.proteins, -Deaths, -days, -country)
-    tmp <- apply(tmp, 2, rank) %>% data.frame()
-
-    score <- varImp(lm(death_per_pop ~ (.), tmp))
-    # score<-summary(lm(death_per_pop~(tmp$percentage_obese+tmp$Structural.proteins+tmp$gt_sixityfive),tmp))
-    # c(score$adj.r.squared,pf(score$fstatistic[1],df1 = score$fstatistic[2],df2 = score$fstatistic[3],lower.tail = FALSE))
-    dim(score)
-  }))
-
-  cor_data
-}
-
 
 # fix the data names
 fix_grab_data_names <- function(x, sel) {
@@ -338,20 +233,16 @@ countryEMPscore <- countryEMPscore[-which(countryEMPscore$country %in% c("Taiwan
 # Current expenditure on health by general government and compulsory schemes (% of current expenditure on health)
 # https://apps.who.int/gho/data/node.main.HS05?lang=en
 
-# blood sugar higher than 7 mmol/L (type 2 definition) age standaradized
-# https://apps.who.int/gho/data/node.main.NCDRGLUCA?lang=en
-
 # death by non communicable diseases
 # https://apps.who.int/gho/data/view.main.NCDDEATHCAUSESNUMBERv?lang=en
 
 # there is no data for Hong knong or for taiwan so those are excluded
 
-
 #------------------------------
 # obesity data age standardized BMI > 30
 #------------------------------
 
-obesity <- fread(paste0(data_path, "covariate_data/clean_data/Obseity_age_standardized.csv")) %>% data.frame()
+obesity <- fread(paste0(data_path, "population_covariates/Obseity_age_standardized.csv")) %>% data.frame()
 
 # fix diff country names
 obesity <- fix_grab_data_names(obesity, country_names)
@@ -365,7 +256,7 @@ colnames(obesity) <- c("Country", "percentage_obese")
 #------------------------------
 # overweight data age standardized BMI >25
 #------------------------------
-overweight <- fread(paste0(data_path, "covariate_data/clean_data/Overweight_age_standardized.csv")) %>% data.frame()
+overweight <- fread(paste0(data_path, "population_covariates/Overweight_age_standardized.csv")) %>% data.frame()
 
 # fix diff country names
 overweight <- fix_grab_data_names(overweight, country_names)
@@ -379,7 +270,7 @@ colnames(overweight) <- c("Country", "percentage_overweight")
 #------------------------------
 # mean BMI
 #------------------------------
-mean_BMI <- fread(paste0(data_path, "covariate_data/clean_data/mean_BMI_by_country.csv")) %>% data.frame()
+mean_BMI <- fread(paste0(data_path, "population_covariates/mean_BMI_by_country.csv")) %>% data.frame()
 
 # fix diff country names
 mean_BMI <- fix_grab_data_names(mean_BMI, country_names)
@@ -393,7 +284,7 @@ colnames(mean_BMI) <- c("Country", "avg_BMI")
 #--------------------------------------------
 # health expenderature as a percentage of GDP
 #--------------------------------------------
-health_per_GPD <- fread(paste0(data_path, "covariate_data/clean_data/health_expend_as_percentageGDP.csv")) %>% data.frame()
+health_per_GPD <- fread(paste0(data_path, "population_covariates/health_expend_as_percentageGDP.csv")) %>% data.frame()
 
 # fix diff country names
 health_per_GPD <- fix_grab_data_names(health_per_GPD, country_names)
@@ -461,7 +352,7 @@ sex_dist <- sex_dist %>%
 #-----------------------------------------------------------------------------------------
 # General government expenditure on health as a percentage of total government expenditure
 #-----------------------------------------------------------------------------------------
-health_expend <- fread(paste0(data_path, "covariate_data/clean_data/expend_by_gen_gov_and_comp_scheme_per.csv")) %>% data.frame()
+health_expend <- fread(paste0(data_path, "population_covariates/expend_by_gen_gov_and_comp_scheme_per.csv")) %>% data.frame()
 
 # fix diff country names
 health_expend <- fix_grab_data_names(health_expend, country_names)
@@ -475,7 +366,7 @@ colnames(health_expend) <- c("Country", "perc_expend")
 #--------------------------------------------
 # deaths by different metrics
 #--------------------------------------------
-ncom <- fread(paste0(data_path, "covariate_data/clean_data/death_by_noncomm_dis.csv")) %>%
+ncom <- fread(paste0(data_path, "population_covariates/death_by_noncomm_dis.csv")) %>%
   data.frame() %>%
   slice(which(Year == 2016))
 
@@ -525,7 +416,7 @@ non_com_data <- ncom_proc %>%
 #-----------------------------------------------------------------------------------------
 # Blood pressure
 #-----------------------------------------------------------------------------------------
-Blood_pressure <- fread(paste0(data_path, "covariate_data/clean_data/BP_by_country.csv")) %>% data.frame()
+Blood_pressure <- fread(paste0(data_path, "population_covariates/BP_by_country.csv")) %>% data.frame()
 
 # fix diff country names
 Blood_pressure <- fix_grab_data_names(Blood_pressure, country_names)
@@ -542,7 +433,6 @@ colnames(Blood_pressure) <- c("Country", "blood_pressure")
 #------------------------------
 
 # create the list of data sets
-# drop BCG becasue there are NAs in the set
 list_of_data <- list(non_com_data, health_per_GPD, mean_BMI, overweight, obesity, health_expend, age_dist, Blood_pressure, sex_dist)
 
 # merge data sets
@@ -584,13 +474,13 @@ cors <- df_death_cor %>% ggplot(aes(x = day, corr.rho, color = deaths, group = d
   geom_point(data = subset(df_death_cor, sig == 1), aes(x = day, y = corr.rho), color = "red") +
   theme_pubclean()
 
+cors
+
 tab <- table(df_death_cor$covar, df_death_cor$sig)[, 2] / table(df_death_cor$covar)
 
+# best combination models -------------------------------------------------
 
-
-
-# best models (SI)
-top_models <- fread(paste0(data_path, "covariate_data/best_mod/best_model_data.csv"))
+top_models <- fread(paste0(data_path, "population_covariates/best_model_data.csv"))
 
 
 df <- top_models %>%
@@ -601,8 +491,11 @@ df <- top_models %>%
 
 df$ident <- factor(df$ident, levels = df$ident[which(df$variable == "med")][order(df$value[which(df$variable == "med")], decreasing = T)])
 
-df %>%
+
+
+p2<-df %>%
   ggplot(aes(x = ident, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme(axis.text.x = element_text(angle = 90))
 
+p2

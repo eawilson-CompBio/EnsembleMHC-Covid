@@ -1,5 +1,5 @@
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(Biostrings)
 library(ggplot2)
 library(dplyr)
@@ -33,5 +33,6 @@ peps <- peps[which(sapply(peps, length) > thres)]
 
 gg <- ggseqlogo(peps, facet = "wrap")
 
+gg
 
-ggsave(gg, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_logoplot.pdf"), width = 15, height = 15)
+#ggsave(gg, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_logoplot.pdf"), width = 15, height = 15)

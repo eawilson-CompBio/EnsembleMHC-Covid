@@ -1,5 +1,5 @@
-EnsembleMHC_path <- "~/Covid-19/EnsembleMHC-Covid19/"
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
 library(ggplot2)
 library(data.table)
 library(stringr)
@@ -10,9 +10,32 @@ library(pwr)
 library(dplyr)
 library(ggpubr)
 library(parallel)
+
+
+# functions ---------------------------------------------------------------
+
+# create score function that will consider individual algorithms
+EMPscore_inv <- function(population, count_mat) {
+  data.frame(do.call(rbind, lapply(population, function(df) {
+    apply(t(sapply(as.character(str_remove(df$HLA, "\\*")), function(i) {
+      sapply(c("All proteins", "Structural proteins"), function(j) {
+        # pf is the peptide fraction; count matrix
+        pf <- count_mat$pep_frac[which(count_mat$HLA == i & count_mat$source == j)]
+        score <- (df$pop_freq[which(df$HLA == i)] * pf)
+      })
+    })), 2, sum) / length(df$HLA)
+  })), stringsAsFactors = F)
+}
+
+# min function
+min_norm <- function(x) {
+  (max(x) - x) / (max(x) - min(x))
+}
+
+
 algos <- c("mhcflurry_affinity_percentile", "mhcflurry_presentation_score", "MixMHCpred", "netMHC_affinity", "netMHCpan_EL_affinity", "netstab_affinity", "pickpocket_affinity")
 
-all_data_clean <- fread("~/Covid-19/improtant_intermediate_datasets/JHU_data_clean.csv")
+all_data_clean <- fread(paste0(data_path,"/JHU_data_clean.csv"))
 
 corona_data <- fread(paste0(data_path, "predicted_corona_peptides.csv"))
 
@@ -22,10 +45,6 @@ selected_allele <- load(paste0(data_path, "selected_alleles.R"))
 day_correction <- as.numeric(today() - mdy("4/10/2020"))
 
 
-# min function
-min_norm <- function(x) {
-  (max(x) - x) / (max(x) - min(x))
-}
 
 load(paste0(data_path, "P_sum_median_1000_boot.R"))
 # set arbitrarily low scores
@@ -36,12 +55,12 @@ P_sum$value[which(P_sum$algo == "mhcflurry_affinity_percentile")] <- .5
 P_sum$value[which(P_sum$algo == "netMHC_affinity")] <- .5
 # pickpocket set to 50nm threshold
 P_sum$value[which(P_sum$algo == "pickpocket_affinity")] <- 1 - log(50, base = 50000)
-# presentation set to the top 1 percent
-P_sum$value[which(P_sum$algo == "mhcflurry_presentation_score")] <- .05
+# presentation set to the top 0.5 percent
+P_sum$value[which(P_sum$algo == "mhcflurry_presentation_score")] <- quantile(corona_data$mhcflurry_presentation_score,.995)
 
 
 pep_probs_ind <- lapply(unique(corona_data$HLA), function(w) {
-  tmp <- corona_data %>% dplyr::slice(which(corona_data$HLA == w))
+  tmp <- corona_data %>% dplyr::slice(which(corona_data$HLA == w)) %>% data.frame()
   tmp$mhcflurry_presentation_score <- min_norm(tmp$mhcflurry_presentation_score)
   tmp$gene <- factor(tmp$gene)
   print(w)
@@ -49,7 +68,6 @@ pep_probs_ind <- lapply(unique(corona_data$HLA), function(w) {
     if (q == "pickpocket_affinity") {
       neg <- 1 - P_sum$PPV[which(P_sum$HLA == str_remove(w, pattern = "\\*") & P_sum$algo == q)]
       thres <- P_sum$value[which(P_sum$HLA == str_remove(w, pattern = "\\*") & P_sum$algo == q)]
-      # if(is.na(neg)){print(q)}
       peptides <- tmp$peptide[which(tmp[, q] >= thres)]
       if (length(peptides) > 1) {
         tmp <- data.frame(peptide = peptides, prob = neg, algo = q)
@@ -77,8 +95,6 @@ pep_probs_ind <- lapply(unique(corona_data$HLA), function(w) {
 all_ind <- do.call(rbind, pep_probs_ind)
 all_ind <- all_ind %>% mutate(PPV = 1 - prob)
 
-# algo_lengths<-all_ind%>%select(algo,HLA)%>%unique()%>%pull(algo)%>%table()
-#
 
 
 indv_metric <- lapply(algos, function(w) {
@@ -106,7 +122,7 @@ indv_metric[[which(algo_lengths != 104)]] <- do.call(rbind, lapply(c("Structural
   tmp <- indv_metric[[which(algo_lengths != 104)]]
   tmp <- tmp[which(tmp$source == j), ]
   rbind(tmp, data.frame(HLA = sel_alleles[-which(sel_alleles %in% tmp$HLA)], count = 0, pep_frac = 0, source = j))
-})) # %>%unique()
+})) 
 
 
 # read in the matrix of all proteins and structural proteins that were calculated previously
@@ -123,16 +139,6 @@ HLA_count <- rbind(df_all_proteins %>% mutate(source = "All proteins") %>%
 
 
 
-# df_all_proteins<-read.csv("~/Covid-19/improtant_intermediate_datasets/identified_peptides_all_proteins_summarise_HLA_protein_counts.csv")
-# df_struct<-read.csv("~/Covid-19/improtant_intermediate_datasets/identified_peptides_all_structural_proteins_only_summarise_HLA_protein_counts.csv")
-#
-# #creates the count matrix for peptide scoring. This is the total number of peptides predicted for each allele with respect to protein set
-# #the peptide frraction is also calculated
-# HLA_count<-rbind(df_all_proteins%>%mutate(source="All proteins")%>%
-#                    select(HLA,count=total_count_all_proteins,source),df_struct%>%mutate(source="Structural proteins")%>%
-#                    select(HLA,count=total_count_struct,source))%>%group_by(source)%>%
-#   mutate(pep_frac=count/sum(count))
-
 
 indv_metric <- c(indv_metric, list(HLA_count))
 names(indv_metric) <- c(algos, "EnsembleMHC")
@@ -144,10 +150,6 @@ all_HLA_data <- fread(paste0(data_path, "HLA_data_manuscript.csv"), header = T)
 test_set <- unique(all_data_clean$Country.Region[which(all_data_clean$Deaths >= 1)])
 # save country names
 country_list <- test_set
-
-# #countries with at least 1000 cases right now
-# test_set<-unique(all_data_clean$Country.Region[which(all_data_clean$Confirmed>=1)])
-# country_list<-unique(all_data_clean$Country.Region[which(all_data_clean$Confirmed>=1)])
 
 # fix country names so that they will match HLA data
 test_set <- lapply(test_set, function(w) {
@@ -161,19 +163,6 @@ test_set[[which(country_list == "US")]] <- "USA"
 
 sel_HLA <- unique(HLA_count$HLA)
 
-# create score function that will consider individual algorithms
-EMPscore_inv <- function(population, count_mat) {
-  data.frame(do.call(rbind, lapply(population, function(df) {
-    apply(t(sapply(as.character(str_remove(df$HLA, "\\*")), function(i) {
-      sapply(c("All proteins", "Structural proteins"), function(j) {
-        # pf is the peptide fraction; count matrix
-        pf <- count_mat$pep_frac[which(count_mat$HLA == i & count_mat$source == j)]
-        score <- (df$pop_freq[which(df$HLA == i)] * pf)
-        # if(length(score)==0){0}else{score}
-      })
-    })), 2, sum) / length(df$HLA)
-  })), stringsAsFactors = F)
-}
 
 # normalize the allele frequencies with respect to selected alleles
 allele_freq_list <- lapply(test_set, function(w) {
@@ -336,7 +325,6 @@ plots <- lapply(1:length(indv_metric), function(n) {
     death_threshold_specific_corr(death_thres, 8)
   }, mc.cores = 10)
 
-  # df_itter_Death<-do.call(rbind,itter)
   # create data frame from death threshold correlations
   # combine results into a matrix
   df_Death <- do.call(rbind, death_threshold_iter)
@@ -380,4 +368,5 @@ plots <- lapply(1:length(indv_metric), function(n) {
 
 garg <- do.call(ggarrange, plots)
 
-ggsave(garg, filename = paste0(EnsembleMHC_path, "plots/SI_figures/SI_individual_algorithms_PPV.pdf"), height = 12, width = 15)
+garg
+#ggsave(garg, filename = paste0(EnsembleMHC_path, "plots/SI_figures/SI_individual_algorithms_PPV.pdf"), height = 12, width = 15)

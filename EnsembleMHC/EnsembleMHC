@@ -74,6 +74,8 @@ if [[ -z ${PSUM} ]]
 then
     echo "no parameterization summary matrix supplied. Using default"
     PSUM=$ENSEMBLEMHC_PATH/allele_parameterization/default_parameterization_summary_matrix.csv
+else
+    PSUM=$(realpath $PSUM)
 fi
 
 

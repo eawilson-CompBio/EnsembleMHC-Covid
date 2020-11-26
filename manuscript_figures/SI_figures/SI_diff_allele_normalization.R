@@ -1,6 +1,6 @@
-data_path <- "~/Covid-19/EnsembleMHC-Covid19/datasets/"
-Ensemble_PATH <- "~/Covid-19/EnsembleMHC-Covid19"
-library(ggthemes)
+# read in paths
+source("~/Covid-19/EnsembleMHC-Covid19/manuscript_figures/set_paths.R")
+
 library(ggpubr)
 library(ggplot2)
 library(data.table)
@@ -13,9 +13,7 @@ library(lubridate)
 library(wpp2019)
 library(tidyr)
 library(viridis)
-library(ggrepel)
 library(reshape2)
-library(pwr)
 library(dplyr)
 library(parallel)
 library(patchwork)
@@ -523,4 +521,5 @@ death_plot <- ggplot(norm_df_Death, aes(days, correlation, group = confirmed)) +
 
 plots <- death_plot_all_alleles_mean + death_plot_all_alleles_relative + death_plot + plot_layout(ncol = 1)
 
-ggsave(plots, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_diff_norm.pdf"), width = 10, height = 10)
+plots
+#ggsave(plots, filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_diff_norm.pdf"), width = 10, height = 10)
