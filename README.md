@@ -10,3 +10,6 @@ EnsembleMHC is a ensemble-based method for the prediction of MHC-I ligands. For 
 
 * [access datasets](datasets/)
 
+## contact 
+
+please email all questions to eawilso6@asu.edu
