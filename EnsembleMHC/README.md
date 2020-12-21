@@ -4,7 +4,7 @@
 
 ### MHC-I prediction algorithms and setup
 
-In order to run EnsembleMHC you will need to download the following MHC-I prediction algorithms
+In order to run EnsembleMHC, you will need to download the following MHC-I prediction algorithms:
 
 *  [MixMHCpred-2.0.2](https://github.com/GfellerLab/MixMHCpred/releases/tag/v2.0.2)
 *  [netMHC-4.0](https://services.healthtech.dtu.dk/services/NetMHC-4.0/9-Downloads.php#)
@@ -45,7 +45,7 @@ Be sure to follow the installation instructions of each algorithm carefully. The
 
 ### permissions
 
-In order for operate EnsembleMHC as presented in the tutorial, give executable permission to EnsembleMHC.
+In order to use EnsembleMHC as presented in the example, give executable permission to EnsembleMHC.
 
 ``` bash
 chmod +x EnsembleMHC
@@ -59,19 +59,19 @@ To see a the list of flags available to EnsembleMHC, enter `EnsembleMHC -h`
 
 * `-p` Specify target protein/s for predictions. Proteins must be in FASTA format.
 	
-* `-a` Specify target HLA. A list of the supported HLAs can be seen [here](scripts/HLA_list.txt)
+* `-a` Specify target HLA. A list of the supported HLAs can be seen [here.](scripts/HLA_list.txt)
 	
-* `-t` Specify the number of threads to EnsembleMHC. If left unassigned, the number of threads will default to the number of available cores.
+* `-t` Specify the number of threads to accessible to EnsembleMHC. If left unassigned, the number of threads will default to the number of available cores.
 	
 * `-o` provide output name for the prediction folder.
     
-* `-m` The parameterization summary matrix. This can be left blank when using the default algorithms and alleles. However, the user has the option to provide a custom parameterization summary matrix. (see allele parameterization)
+* `-m` The parameterization summary matrix. This can be left blank when using the default algorithm and allele thresholds. The user has the option to provide a custom parameterization summary matrix. (see allele parameterization)
 
 * `-d` add this flag to turn on debug mode. This will generate more verbose outputs.
 
 ## test 
 
-You can test your installation of EnsembleMHC by navigating to the test directory and enter the following commands.
+You can test your installation of EnsembleMHC by navigating to the test directory and entering the following commands.
 
 ``` bash
 cd test/
@@ -85,6 +85,6 @@ To check if the expected output was generated, you can enter the following comma
 ``` bash
 diff EnsembleMHC_test/HLA-A02\:01_peptideFDR_pred.csv EnsembleMHC_predict.compare | wc -l
 ```
-If any number other than 0 is returned, then there are potential errors in the install
+numbers > 0 indicate a potential error in the install.
 
 
