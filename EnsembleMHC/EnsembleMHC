@@ -82,17 +82,18 @@ fi
 
 if $DEBUG
 then
-    mkdir $OUTPUT
+    
+    if [ ! -d $OUTPUT ]; then  mkdir $OUTPUT ;fi
     protein=$(realpath $protein)
 
     cd $OUTPUT
     #split the protein file
-    Rscript $ENSEMBLEMHC_PATH/scripts/split_prot.R $protein
+    Rscript $ENSEMBLEMHC_PATH/scripts/split_prot.R $protein $HLA
 
 
     ##prep for binding predictions and generate run file
     ##the run file coordinates the parallelization of the predictions 
-    $ENSEMBLEMHC_PATH/scripts/prep_for_binding_pred.sh $HLA EnsembleMHC_pep_pred.tmp $PATH_FILE
+    $ENSEMBLEMHC_PATH/scripts/prep_for_binding_pred.sh $HLA "$HLA"_EnsembleMHC_pep_pred.tmp $PATH_FILE
 
 
 
@@ -128,21 +129,21 @@ then
     Rscript $ENSEMBLEMHC_PATH/scripts/calculate_peptideFDR.R "$HLA"_scored_peptides.csv $PSUM &>/dev/null
     cd ..
     mv $HLA"_predictions" $HLA"_predictions_tmp_files"
-    mv EnsembleMHC_pep_pred.tmp $HLA"_predictions_tmp_files"/
+    mv "$HLA"_EnsembleMHC_pep_pred.tmp $HLA"_predictions_tmp_files"/
     mv $HLA"_predictions_tmp_files"/"$HLA"_peptideFDR_pred.csv .
 else
 
-    mkdir $OUTPUT
+    if [ ! -d $OUTPUT ]; then  mkdir $OUTPUT ;fi
     protein=$(realpath $protein)
 
     cd $OUTPUT
     #split the protein file
-    Rscript $ENSEMBLEMHC_PATH/scripts/split_prot.R $protein &>/dev/null
+    Rscript $ENSEMBLEMHC_PATH/scripts/split_prot.R $protein $HLA &>/dev/null
 
 
     ##prep for binding predictions and generate run file
     ##the run file coordinates the parallelization of the predictions 
-    $ENSEMBLEMHC_PATH/scripts/prep_for_binding_pred.sh $HLA EnsembleMHC_pep_pred.tmp $PATH_FILE &>/dev/null
+    $ENSEMBLEMHC_PATH/scripts/prep_for_binding_pred.sh $HLA "$HLA"_EnsembleMHC_pep_pred.tmp $PATH_FILE &>/dev/null
 
 
 
@@ -178,7 +179,7 @@ else
     Rscript $ENSEMBLEMHC_PATH/scripts/calculate_peptideFDR.R "$HLA"_scored_peptides.csv $PSUM &>/dev/null
     cd ..
     mv $HLA"_predictions" $HLA"_predictions_tmp_files"
-    mv EnsembleMHC_pep_pred.tmp $HLA"_predictions_tmp_files"/
+    mv "$HLA"_EnsembleMHC_pep_pred.tmp $HLA"_predictions_tmp_files"/
     mv $HLA"_predictions_tmp_files"/"$HLA"_peptideFDR_pred.csv .
 
 fi

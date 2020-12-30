@@ -1,4 +1,6 @@
-fasta <- commandArgs(trailingOnly = T)
+var <- commandArgs(trailingOnly = T)
+fasta <- var[1]
+HLA <- var[2]
 if (!require("stringr")) install.packages("stringr")
 if (!require("seqinr")) install.packages("seqinr")
 library(stringr)
@@ -18,4 +20,4 @@ peptides <- do.call(rbind, lapply(1:length(fasta), function(i) {
 }))
 
 
-write.csv(peptides, file = "EnsembleMHC_pep_pred.tmp", row.names = F)
+write.csv(peptides, file = paste(HLA,"EnsembleMHC_pep_pred.tmp",sep="_"), row.names = F)
