@@ -1,8 +1,8 @@
 #!/bin/bash
 source activate mhcflurry-env
-export PATH_FILE=/Users/eawilso6/Covid-19/EnsembleMHC-Covid19/EnsembleMHC/ALGORITHM_PATHS
+PATH_FILE=$(realpath $0)
 
-source $PATH_FILE
+source ${PATH_FILE%/*}/ALGORITHM_PATHS
 
 
 
