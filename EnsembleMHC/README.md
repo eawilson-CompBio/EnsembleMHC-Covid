@@ -21,7 +21,7 @@ Be sure to follow the installation instructions of each algorithm carefully. The
 * [Anaconda](https://docs.anaconda.com/anaconda/install/) 
 
 ** homebrew install of anaconda
-	```bash
+	```
 	brew cask install anaconda
 	```
 
@@ -30,16 +30,16 @@ Be sure to follow the installation instructions of each algorithm carefully. The
 * gnu-sed (only applicable if using macOS). This can be accomplished using homebrew
   
   Download homebrew
-	```bash
+	```	
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 	```
   Download gnu-sed
-	```bash
+	```
 	brew install gnu-sed
 	```
 
   Download gnu-parallel
-	```bash
+	```
 	brew install parallel
 	```
 
