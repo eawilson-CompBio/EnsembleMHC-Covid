@@ -17,28 +17,26 @@ Be sure to follow the installation instructions of each algorithm carefully. The
 
 
 ### Other dependencies 
-
-* [Anaconda](https://docs.anaconda.com/anaconda/install/) 
-
-** homebrew install of anaconda
-	```
-	brew cask install anaconda
-	```
-
-* [R](https://www.r-project.org/)
-
-* gnu-sed (only applicable if using macOS). This can be accomplished using homebrew
-  
-  Download homebrew
+ * Download homebrew
 	```	
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 	```
-  Download gnu-sed
+
+* [Anaconda](https://docs.anaconda.com/anaconda/install/) 
+
+	* install anaconda using home brew
+		```
+		brew cask install anaconda
+		```
+
+* [R](https://www.r-project.org/)
+
+* gnu-sed (only applicable if using macOS). 
 	```
 	brew install gnu-sed
 	```
 
-  Download gnu-parallel
+* gnu-parallel
 	```
 	brew install parallel
 	```
