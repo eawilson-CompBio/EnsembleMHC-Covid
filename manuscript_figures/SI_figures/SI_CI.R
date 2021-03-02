@@ -269,7 +269,7 @@ select_population$country[str_which(select_population$country, "Taiw")] <- "Taiw
 select_population$country[str_which(select_population$country, "Hong")] <- "Hong Kong"
 
 
-all_stats <- mclapply(seq(5,100,5), function(death_thres) {
+all_stats <- mclapply(1:100, function(death_thres) {
   get_stats(death_thres, 8)
 }, mc.cores = 10)
 all_s <- do.call(rbind, all_stats)
@@ -304,9 +304,10 @@ CI_plot_struct
 
 
 #write.csv(all_s, file = "SI_table_2_cor_data.csv", row.names = F)
-all_s$prot_group[which(all_s$prot_group=="full")] <- "entire SARS-CoV-2 proteome" 
+all_s$prot_group[which(all_s$prot_group=="full")] <- "Full SARS-CoV-2 proteome" 
 all_s$prot_group[which(all_s$prot_group=="structural")] <- "SARS-CoV-2 structural proteins" 
 CI_combo <- all_s %>%
+  slice(which(death_threshold%in%seq(5,100,5)))%>%
   ggplot(aes(x = day, y = estimate.rho, color = prot_group)) +
   geom_line(linetype="dashed") +
   geom_ribbon(aes(ymax = upper, ymin = lower,fill=prot_group), alpha = .2) +
@@ -318,3 +319,12 @@ CI_combo <- all_s %>%
   ylab("spearman's rho")
 
 ggsave(CI_plot, file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_Full_SARS-CoV-2_CI.pdf"), width = 8, height = 4.5)
+
+norm <- function(x){(x-min(x))/(max(x)-min(x))}
+
+cor_data<-all_s %>%
+  group_by(prot_group, death_threshold) %>%
+  mutate(corrected_pvalue = p.adjust(p_value, method = "fdr")) %>%
+  mutate(norm_days=norm(day))
+
+write.csv(cor_data,file = "~/projects/Covid-19/EnsembleMHC-Covid19/datasets/Table_S3_EMP_score_correlation_data,_related_to_Figure_3",row.names = F)
