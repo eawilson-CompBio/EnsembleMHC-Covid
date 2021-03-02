@@ -1,7 +1,7 @@
 # EnsembleMHC
 
 
-![image](https://github.com/eawilson-CompBio/EnsembleMHC-Covid/blob/master/update_new_data/todays_data/todays_correlation.png?raw=true)
+![image](https://github.com/eawilson-CompBio/EnsembleMHC-Covid/blob/master/update_new_data/todays_data/*.png?raw=true)
 
 
 ## Overview:
