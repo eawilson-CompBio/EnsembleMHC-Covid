@@ -26,7 +26,8 @@ p1 <- data.frame(HLA = factor(df_all_w_std$HLA, levels = rev(df_all_w_std$HLA)),
 p2 <- data.frame("pep" = all_sample) %>% ggplot(aes(pep)) +
   geom_density() +
   xlab("number of peptides") +
-  theme_classic()
+  theme_classic() +
+  ggtitle("Full SARS-CoV-2 proteome")
 
 struct_sample <- round(rnorm(n = 52, mean = 2, sd = .5))
 p3 <- data.frame(HLA = factor(df_all_w_std$HLA, levels = rev(df_all_w_std$HLA)), count = struct_sample) %>% ggplot(aes(x = HLA, y = count)) +
@@ -41,9 +42,13 @@ p4 <- data.frame("pep" = struct_sample) %>% ggplot(aes(pep)) +
   geom_density() +
   xlab("number of peptides") +
   scale_x_continuous(breaks = seq(0, max(struct_sample), 1)) +
-  theme_classic()
+  theme_classic() +
+  ggtitle("SARS-CoV-2 structural proteins")
 
-SI_even_dist <- p1 + p2 + p3 + p4 + plot_layout(ncol = , byrow = F, heights = c(.7, .25))
 
-ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_even_distrubtion.pdf"), SI_even_dist, width = 14, height = 10.667)
+#SI_even_dist <- p1 + p2 + p3 + p4 + plot_layout(ncol = , byrow = F, heights = c(.7, .25))
 
+SI_even_dist <- p2 / p4
+
+#ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_even_distrubtion.pdf"), SI_even_dist, width = 14, height = 10.667)
+ggsave(filename = paste0(Ensemble_PATH, "/plots/SI_figures/SI_even_distrubtion.pdf"), SI_even_dist, width = 2.8, height = 2.8)

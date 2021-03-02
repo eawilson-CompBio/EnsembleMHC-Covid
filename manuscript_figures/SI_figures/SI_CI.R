@@ -269,7 +269,7 @@ select_population$country[str_which(select_population$country, "Taiw")] <- "Taiw
 select_population$country[str_which(select_population$country, "Hong")] <- "Hong Kong"
 
 
-all_stats <- mclapply(1:100, function(death_thres) {
+all_stats <- mclapply(seq(5,100,5), function(death_thres) {
   get_stats(death_thres, 8)
 }, mc.cores = 10)
 all_s <- do.call(rbind, all_stats)
@@ -304,3 +304,17 @@ CI_plot_struct
 
 
 #write.csv(all_s, file = "SI_table_2_cor_data.csv", row.names = F)
+all_s$prot_group[which(all_s$prot_group=="full")] <- "entire SARS-CoV-2 proteome" 
+all_s$prot_group[which(all_s$prot_group=="structural")] <- "SARS-CoV-2 structural proteins" 
+CI_combo <- all_s %>%
+  ggplot(aes(x = day, y = estimate.rho, color = prot_group)) +
+  geom_line(linetype="dashed") +
+  geom_ribbon(aes(ymax = upper, ymin = lower,fill=prot_group), alpha = .2) +
+  theme_classic() +
+  facet_wrap(death_threshold ~ .) +
+  xlab("days from death threshold") +
+  theme(legend.position = "top") +
+  labs(color="",fill="") +
+  ylab("spearman's rho")
+
+ggsave(CI_plot, file = paste0(Ensemble_PATH, "/plots/SI_figures/SI_Full_SARS-CoV-2_CI.pdf"), width = 8, height = 4.5)
