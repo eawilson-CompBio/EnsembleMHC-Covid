@@ -17,29 +17,27 @@ Be sure to follow the installation instructions of each algorithm carefully. The
 
 
 ### Other dependencies 
+ * Download homebrew
+	```	
+	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+	```
 
 * [Anaconda](https://docs.anaconda.com/anaconda/install/) 
 
-** homebrew install of anaconda
-	```bash
-	brew cask install anaconda
-	```
+	* install anaconda using home brew
+		```
+		brew cask install anaconda
+		```
 
 * [R](https://www.r-project.org/)
 
-* gnu-sed (only applicable if using macOS). This can be accomplished using homebrew
-  
-  Download homebrew
-	```bash
-	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+* gnu-sed (only applicable if using macOS). 
 	```
-  Download gnu-sed
-	```bash
 	brew install gnu-sed
 	```
 
-  Download gnu-parallel
-	```bash
+* gnu-parallel
+	```
 	brew install parallel
 	```
 
