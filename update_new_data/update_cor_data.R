@@ -5,6 +5,7 @@ library(dplyr)
 library(stringr)
 library(lubridate)
 library(patchwork)
+library(ggrepel)
 url <- "https://www.worldometers.info/coronavirus/"
 
 todays_data <- html_table(read_html(url))[[1]][, c("Country,Other", "Deaths/1M pop")]
@@ -55,5 +56,6 @@ p2 <- data %>% ggplot(aes(x = group, y = deaths_per_million,fill=group,label=cou
 
 plot<-p1+p2 
 
-ggsave(plot = plot,filename = paste0("todays_data/",the_date,".pdf"),width = 9,height = 4.5)
+ggsave(plot = plot,filename = paste0("todays_data/todays_correlation.png"),width = 9,height = 4.5)
 
+write(x = noquote(as.character(the_date)),file = "last_date_run.txt")
