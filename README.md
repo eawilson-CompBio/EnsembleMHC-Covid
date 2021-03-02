@@ -1,8 +1,8 @@
 # EnsembleMHC
 
 
-![image](https://github.com/eawilson-CompBio/EnsembleMHC-Covid/blob/master/update_new_data/todays_data/todays_correlation.png?raw=true)
-
+![image](https://github.com/eawilson-CompBio/EnsembleMHC-Covid/blob/master/generate_readme_image/todays_data/todays_correlation.png?raw=true)
+*The correlation between EnsembleMHC population score based on SARS-CoV-2 structural proteins (EMP) and deaths per million for 23 countries. Large EMP score ranks indicate countries predicted to more effiecently present SARS-CoV-2 peptides to CD8+ T cells. *
 
 ## Overview:
 
