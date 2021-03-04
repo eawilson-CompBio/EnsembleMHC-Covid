@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source /Users/eawilso6/.bash_profile
 
 git pull origin master
 
